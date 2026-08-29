@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"outDir":"dist","rootDir":".","types":[]},
+  "include": [
+    "packages/domain/**/*.ts",
+    "packages/state-machine/**/*.ts",
+    "packages/provenance/**/*.ts",
+    "packages/layout-engine/**/*.ts",
+    "packages/repositories/**/*.ts",
+    "packages/services/**/*.ts",
+    "services/mcp-server/src/tool-registry.ts"
+  ]
+}

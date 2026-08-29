@@ -1,0 +1,13 @@
+BEGIN;
+DROP TABLE IF EXISTS idempotency_keys;
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_final_design_fk;
+ALTER TABLE verification_versions DROP CONSTRAINT IF EXISTS verification_design_fk;
+ALTER TABLE verification_versions DROP COLUMN IF EXISTS design_version_id;
+DROP TABLE IF EXISTS design_versions;
+ALTER TABLE approvals DROP CONSTRAINT IF EXISTS approvals_user_approval_consistency_chk;
+ALTER TABLE approvals DROP COLUMN IF EXISTS approved_at;
+ALTER TABLE approvals DROP COLUMN IF EXISTS approved_by_user_id;
+ALTER TABLE approvals DROP COLUMN IF EXISTS origin;
+ALTER TABLE projects DROP COLUMN IF EXISTS final_design_version_id;
+ALTER TABLE projects DROP COLUMN IF EXISTS revision;
+COMMIT;

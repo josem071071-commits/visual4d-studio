@@ -1,0 +1,11 @@
+BEGIN;
+DROP TABLE IF EXISTS verification_versions;
+DROP TABLE IF EXISTS art_direction_versions;
+DROP TABLE IF EXISTS resource_versions;
+DROP TABLE IF EXISTS structure_versions;
+DROP TABLE IF EXISTS analysis_versions;
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_stage_status_consistency_chk;
+ALTER TABLE provenance_records DROP CONSTRAINT IF EXISTS provenance_source_id_required_chk;
+ALTER TABLE provenance_records DROP CONSTRAINT IF EXISTS provenance_approved_at_consistency_chk;
+DROP INDEX IF EXISTS identity_versions_one_active_per_institution;
+COMMIT;

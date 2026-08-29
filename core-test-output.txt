@@ -1,0 +1,304 @@
+TAP version 13
+# Subtest: master assets cannot be generatively edited
+ok 1 - master assets cannot be generatively edited
+  ---
+  duration_ms: 2.621559
+  type: 'test'
+  ...
+# Subtest: generated images cannot be documentary
+ok 2 - generated images cannot be documentary
+  ---
+  duration_ms: 0.356481
+  type: 'test'
+  ...
+# Subtest: documentary photo cannot be AI generated
+ok 3 - documentary photo cannot be AI generated
+  ---
+  duration_ms: 0.591939
+  type: 'test'
+  ...
+# Subtest: assets cannot cross institution boundaries
+ok 4 - assets cannot cross institution boundaries
+  ---
+  duration_ms: 0.421111
+  type: 'test'
+  ...
+# Subtest: private library owner must match institution owner
+ok 5 - private library owner must match institution owner
+  ---
+  duration_ms: 0.597515
+  type: 'test'
+  ...
+# Subtest: archived master asset cannot be active master
+ok 6 - archived master asset cannot be active master
+  ---
+  duration_ms: 0.533536
+  type: 'test'
+  ...
+# Subtest: prototype format is portrait 9:16 and enforces tolerance
+ok 7 - prototype format is portrait 9:16 and enforces tolerance
+  ---
+  duration_ms: 0.514084
+  type: 'test'
+  ...
+# Subtest: cannot structure before analysis approval
+ok 8 - cannot structure before analysis approval
+  ---
+  duration_ms: 0.452893
+  type: 'test'
+  ...
+# Subtest: can structure after current analysis approval
+ok 9 - can structure after current analysis approval
+  ---
+  duration_ms: 0.576174
+  type: 'test'
+  ...
+# Subtest: stale analysis approval is rejected
+ok 10 - stale analysis approval is rejected
+  ---
+  duration_ms: 0.933229
+  type: 'test'
+  ...
+# Subtest: cannot generate with stale art-direction approval
+ok 11 - cannot generate with stale art-direction approval
+  ---
+  duration_ms: 0.406961
+  type: 'test'
+  ...
+# Subtest: critical error blocks approval
+ok 12 - critical error blocks approval
+  ---
+  duration_ms: 0.634068
+  type: 'test'
+  ...
+# Subtest: stale verification blocks final
+ok 13 - stale verification blocks final
+  ---
+  duration_ms: 0.441522
+  type: 'test'
+  ...
+# Subtest: generated documentary provenance is rejected
+ok 14 - generated documentary provenance is rejected
+  ---
+  duration_ms: 1.365742
+  type: 'test'
+  ...
+# Subtest: master asset provenance cannot be generated
+ok 15 - master asset provenance cannot be generated
+  ---
+  duration_ms: 0.126069
+  type: 'test'
+  ...
+# Subtest: solver returns typed 1080x1920 safe layout
+ok 16 - solver returns typed 1080x1920 safe layout
+  ---
+  duration_ms: 0.336328
+  type: 'test'
+  ...
+# Subtest: up migration creates all Sprint 1.1 core tables and down migration removes them
+ok 17 - up migration creates all Sprint 1.1 core tables and down migration removes them
+  ---
+  duration_ms: 8.396079
+  type: 'test'
+  ...
+# Subtest: migration encodes multi-institution and same-parent integrity constraints
+ok 18 - migration encodes multi-institution and same-parent integrity constraints
+  ---
+  duration_ms: 1.084436
+  type: 'test'
+  ...
+# Subtest: migration constrains project types, stages and asset types
+ok 19 - migration constrains project types, stages and asset types
+  ---
+  duration_ms: 0.690599
+  type: 'test'
+  ...
+# Subtest: migration stores exact approval version IDs and provenance
+ok 20 - migration stores exact approval version IDs and provenance
+  ---
+  duration_ms: 0.991894
+  type: 'test'
+  ...
+# Subtest: Sprint 2 migration enforces one active identity and provenance consistency
+ok 21 - Sprint 2 migration enforces one active identity and provenance consistency
+  ---
+  duration_ms: 0.665253
+  type: 'test'
+  ...
+# Subtest: Sprint 2 down migration reverses all added tables and constraints
+ok 22 - Sprint 2 down migration reverses all added tables and constraints
+  ---
+  duration_ms: 0.656191
+  type: 'test'
+  ...
+# Subtest: Sprint 2.1 completes gated workflow with exact DesignVersion to FINAL
+ok 23 - Sprint 2.1 completes gated workflow with exact DesignVersion to FINAL
+  ---
+  duration_ms: 30.342552
+  type: 'test'
+  ...
+# Subtest: unauthorized actor cannot access project
+ok 24 - unauthorized actor cannot access project
+  ---
+  duration_ms: 3.968198
+  type: 'test'
+  ...
+# Subtest: structure is blocked without exact analysis approval
+ok 25 - structure is blocked without exact analysis approval
+  ---
+  duration_ms: 2.072077
+  type: 'test'
+  ...
+# Subtest: resource resolver reports missing hero media and blocks art direction
+ok 26 - resource resolver reports missing hero media and blocks art direction
+  ---
+  duration_ms: 10.58558
+  type: 'test'
+  ...
+# Subtest: inactive current version blocks MASTER ASSET resource resolution
+ok 27 - inactive current version blocks MASTER ASSET resource resolution
+  ---
+  duration_ms: 6.438329
+  type: 'test'
+  ...
+# Subtest: verification requires exact current DesignVersion
+ok 28 - verification requires exact current DesignVersion
+  ---
+  duration_ms: 9.3258
+  type: 'test'
+  ...
+# Subtest: critical verification error blocks FINAL
+ok 29 - critical verification error blocks FINAL
+  ---
+  duration_ms: 11.103048
+  type: 'test'
+  ...
+# Subtest: idempotent mutation returns same analysis version
+ok 30 - idempotent mutation returns same analysis version
+  ---
+  duration_ms: 2.870597
+  type: 'test'
+  ...
+# Subtest: identity activation archives old ACTIVE and updates institution pointer
+ok 31 - identity activation archives old ACTIVE and updates institution pointer
+  ---
+  duration_ms: 3.570773
+  type: 'test'
+  ...
+# Subtest: MCP registry injects actor and rejects permissive boolean coercion
+ok 32 - MCP registry injects actor and rejects permissive boolean coercion
+  ---
+  duration_ms: 5.086288
+  type: 'test'
+  ...
+# Subtest: Sprint 2.1 migration includes DesignVersion and idempotency
+ok 33 - Sprint 2.1 migration includes DesignVersion and idempotency
+  ---
+  duration_ms: 1.796674
+  type: 'test'
+  ...
+# Subtest: Sprint 2.1 migration records user approval provenance
+ok 34 - Sprint 2.1 migration records user approval provenance
+  ---
+  duration_ms: 1.399825
+  type: 'test'
+  ...
+# Subtest: PostgreSQL repository has transactional identity activation, optimistic revision and advisory version lock
+ok 35 - PostgreSQL repository has transactional identity activation, optimistic revision and advisory version lock
+  ---
+  duration_ms: 7.499063
+  type: 'test'
+  ...
+# Subtest: Sprint 2.2 migration scopes verification and final design to same project
+ok 36 - Sprint 2.2 migration scopes verification and final design to same project
+  ---
+  duration_ms: 0.485667
+  type: 'test'
+  ...
+# Subtest: local MCP is loopback-first and bearer authenticated
+ok 37 - local MCP is loopback-first and bearer authenticated
+  ---
+  duration_ms: 0.69885
+  type: 'test'
+  ...
+# Subtest: explicit approvals use one-time grants bound to exact artifact
+ok 38 - explicit approvals use one-time grants bound to exact artifact
+  ---
+  duration_ms: 0.399144
+  type: 'test'
+  ...
+# Subtest: finalization no longer auto-approves verification
+ok 39 - finalization no longer auto-approves verification
+  ---
+  duration_ms: 0.891146
+  type: 'test'
+  ...
+# Subtest: MCP v2 and PostgreSQL dependencies are pinned
+ok 40 - MCP v2 and PostgreSQL dependencies are pinned
+  ---
+  duration_ms: 0.832544
+  type: 'test'
+  ...
+# Subtest: Sprint 2.3 idempotency is transaction-scoped and reserves before mutation
+ok 41 - Sprint 2.3 idempotency is transaction-scoped and reserves before mutation
+  ---
+  duration_ms: 2.08834
+  type: 'test'
+  ...
+# Subtest: workflow artifacts use transaction-local repository queries
+ok 42 - workflow artifacts use transaction-local repository queries
+  ---
+  duration_ms: 0.295746
+  type: 'test'
+  ...
+# Subtest: approval grants have issued claimed consumed lifecycle and retry recovery
+ok 43 - approval grants have issued claimed consumed lifecycle and retry recovery
+  ---
+  duration_ms: 0.350356
+  type: 'test'
+  ...
+# Subtest: approval grant issuance validates exact project artifact and stage
+ok 44 - approval grant issuance validates exact project artifact and stage
+  ---
+  duration_ms: 0.477088
+  type: 'test'
+  ...
+# Subtest: dev approval bridge is explicitly gated and production-neutral
+ok 45 - dev approval bridge is explicitly gated and production-neutral
+  ---
+  duration_ms: 0.377955
+  type: 'test'
+  ...
+# Subtest: HTTP boundary includes body timeout and rate limiting
+ok 46 - HTTP boundary includes body timeout and rate limiting
+  ---
+  duration_ms: 0.305694
+  type: 'test'
+  ...
+# Subtest: MCP tools declare annotations and strict schemas
+ok 47 - MCP tools declare annotations and strict schemas
+  ---
+  duration_ms: 0.391242
+  type: 'test'
+  ...
+# Subtest: Sprint 2.3 migration persists idempotency states and approval grants
+ok 48 - Sprint 2.3 migration persists idempotency states and approval grants
+  ---
+  duration_ms: 0.24821
+  type: 'test'
+  ...
+# Subtest: memory idempotency collapses concurrent duplicate mutations
+ok 49 - memory idempotency collapses concurrent duplicate mutations
+  ---
+  duration_ms: 55.847861
+  type: 'test'
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 710.223498

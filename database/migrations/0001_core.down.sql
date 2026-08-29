@@ -1,0 +1,13 @@
+BEGIN;
+DROP TABLE IF EXISTS audit_events;
+DROP TABLE IF EXISTS provenance_records;
+DROP TABLE IF EXISTS approvals;
+DROP TABLE IF EXISTS projects;
+ALTER TABLE IF EXISTS assets DROP CONSTRAINT IF EXISTS assets_current_version_same_asset_fk;
+DROP TABLE IF EXISTS asset_versions;
+DROP TABLE IF EXISTS assets;
+ALTER TABLE IF EXISTS institutions DROP CONSTRAINT IF EXISTS institutions_active_identity_same_institution_fk;
+DROP TABLE IF EXISTS identity_versions;
+DROP TABLE IF EXISTS institutions;
+DROP TABLE IF EXISTS users;
+COMMIT;

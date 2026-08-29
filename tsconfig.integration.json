@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-integration",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": [
+    "packages/domain/src/**/*.ts",
+    "packages/repositories/src/**/*.ts",
+    "packages/postgres-repository/src/**/*.ts",
+    "packages/services/src/**/*.ts",
+    "packages/state-machine/src/**/*.ts",
+    "services/mcp-server/src/**/*.ts"
+  ]
+}
