@@ -1,0 +1,101 @@
+name: Visual 4D Core External Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  certify-core:
+    name: Core certification (Node 22 + PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: visual4d
+          POSTGRES_PASSWORD: visual4d_ci_only
+          POSTGRES_DB: visual4d_cert
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U visual4d -d visual4d_cert"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      VISUAL4D_TEST_DATABASE_URL: postgresql://visual4d:visual4d_ci_only@127.0.0.1:5432/visual4d_cert
+      VISUAL4D_CERTIFICATION_ALLOW_SCHEMA_RESET: "true"
+      VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS: "true"
+      VISUAL4D_MAX_BODY_BYTES: "65536"
+      VISUAL4D_REQUEST_TIMEOUT_MS: "10000"
+      VISUAL4D_RATE_LIMIT_PER_MINUTE: "500"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Clean dependency install
+        run: npm ci
+
+      - name: Certification environment guard
+        run: node scripts/ci-environment-check.mjs
+
+      - name: Build core
+        run: npm run build:core
+
+      - name: Full typecheck
+        run: npm run typecheck
+
+      - name: Build integration targets
+        run: npm run build:integration
+
+      - name: Runtime and domain suites
+        run: |
+          npm run test:core
+          npm run test:sprint2
+          npm run test:sprint2.1
+          npm run test:sprint2.2
+          npm run test:sprint2.3
+          npm run test:migrations
+
+      - name: PostgreSQL UP/DOWN/UP — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
+
+      - name: PostgreSQL + MCP core certification — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/core-certification.integration.test.mjs
+
+      - name: Generate certification report
+        if: success()
+        env:
+          CERTIFICATION_STATUS: PASS
+        run: node scripts/generate-certification-report.mjs
+
+      - name: Upload certification report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual4d-core-certification-${{ github.sha }}
+          path: certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md
+          if-no-files-found: error
+          retention-days: 30
