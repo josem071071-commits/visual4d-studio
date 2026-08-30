@@ -8,6 +8,7 @@ import type { ActorContext, ArtifactKind } from "../../../packages/repositories/
 import { PostgresApprovalGrantStore } from "./approval-grants.js";
 import { actorFromRequest, type LocalAuthConfig, LocalAuthError } from "./local-auth.js";
 import { createVisual4DToolRegistry } from "./tool-registry.js";
+import { createRenderPreviewTool } from "./render-tool.js";
 
 export interface LocalMcpServerOptions {
   databaseUrl: string;
@@ -44,13 +45,13 @@ class MinuteRateLimiter{
 
 export function buildMcpServer(workflow:ProjectWorkflowService, grants:PostgresApprovalGrantStore):McpServer {
   const actorProvider=()=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");return actor;};
-  const defs=createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action));
-  const server=new McpServer({name:"visual4d-local",version:"0.2.3"},{capabilities:{tools:{}}});
+  const defs=[...createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action)),createRenderPreviewTool()];
+  const server=new McpServer({name:"visual4d-local",version:"0.3.5"},{capabilities:{tools:{}}});
   for(const def of defs){
     const toolConfig={description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations})};
     server.registerTool(def.name,toolConfig,async(args)=>{
       try{const out=await def.execute(args as Record<string,unknown>);return{content:[{type:"text" as const,text:JSON.stringify(out)}]};}
-      catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}
+      catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};
     });
   }
   return server;
@@ -66,13 +67,12 @@ export function createLocalMcpHttpServer(options:LocalMcpServerOptions){
   const limiter=new MinuteRateLimiter(options.rateLimitPerMinute??120);
 
   const server=createServer(async(req,res)=>{
-    if(req.url==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-local",version:"0.2.3"});
+    if(req.url==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-local",version:"0.3.5"});
     let actor:ActorContext;
     try{actor=actorFromRequest(req,options.auth);}catch(e){if(e instanceof LocalAuthError){res.setHeader("www-authenticate",'Bearer realm="visual4d-local"');return json(res,e.statusCode,{error:e.code});}return json(res,401,{error:"UNAUTHORIZED"});}
     if(!limiter.allow(actor.userId))return json(res,429,{error:"RATE_LIMIT_EXCEEDED"});
 
     if(req.url==="/local/approval-grants"&&req.method==="POST"){
-      // Development-only bridge. Production must bind grants to an authenticated UI action, not this header.
       if(options.allowDevApprovalGrants!==true)return json(res,404,{error:"NOT_FOUND"});
       if(req.headers["x-visual4d-dev-user-action"]!=="approve")return json(res,403,{error:"EXPLICIT_DEV_USER_ACTION_REQUIRED"});
       try{
@@ -86,16 +86,7 @@ export function createLocalMcpHttpServer(options:LocalMcpServerOptions){
     }
 
     if(req.url!=="/mcp")return json(res,404,{error:"NOT_FOUND"});
-    const request={
-      method:req.method??"GET",
-      url:req.url,
-      headers:req.headers,
-      socket:req.socket,
-      on:req.on.bind(req),
-      once:req.once.bind(req),
-      pipe:req.pipe.bind(req),
-      [Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)
-    };
+    const request={method:req.method??"GET",url:req.url,headers:req.headers,socket:req.socket,on:req.on.bind(req),once:req.once.bind(req),pipe:req.pipe.bind(req),[Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)};
     return actorStorage.run(actor,()=>mcpHandler(request,res));
   });
 
