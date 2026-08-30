@@ -1,4 +1,4 @@
-import { createPublicKey, verify as verifySignature } from "node:crypto";
+import { createPublicKey, verify as verifySignature, type JsonWebKey } from "node:crypto";
 import {
   ProductionAuthError,
   VISUAL4D_PRODUCTION_SCOPES,
@@ -18,7 +18,7 @@ interface JwtClaims {
   scp?: string[];
   sid?: string;
 }
-interface Jwk { kty?: string; kid?: string; use?: string; alg?: string; n?: string; e?: string; [key:string]: unknown; }
+interface Jwk extends JsonWebKey { kid?: string; use?: string; alg?: string; }
 interface JwksDocument { keys?: Jwk[]; }
 
 export interface JwksJwtVerifierOptions {
@@ -78,7 +78,7 @@ export class Rs256JwksTokenVerifier implements ProductionTokenVerifier {
     if(!header.kid) throw new ProductionAuthError(401,"JWT_KID_REQUIRED");
     const jwk=(await this.keys()).find(key=>key.kid===header.kid&&key.kty==="RSA"&&(key.use===undefined||key.use==="sig"));
     if(!jwk) throw new ProductionAuthError(401,"JWKS_KEY_NOT_FOUND");
-    const key=createPublicKey({key:jwk as JsonWebKey,format:"jwk"});
+    const key=createPublicKey({key:jwk,format:"jwk"});
     const valid=verifySignature("RSA-SHA256",Buffer.from(`${encodedHeader}.${encodedClaims}`),key,Buffer.from(encodedSignature,"base64url"));
     if(!valid) throw new ProductionAuthError(401,"INVALID_JWT_SIGNATURE");
     if(claims.iss!==this.options.issuer) throw new ProductionAuthError(401,"INVALID_TOKEN_ISSUER");
