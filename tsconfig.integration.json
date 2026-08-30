@@ -13,6 +13,7 @@
     "packages/postgres-repository/src/**/*.ts",
     "packages/services/src/**/*.ts",
     "packages/state-machine/src/**/*.ts",
-    "services/mcp-server/src/**/*.ts"
+    "services/mcp-server/src/**/*.ts",
+    "tests/production-server.test.ts"
   ]
 }
