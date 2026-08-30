@@ -36,10 +36,6 @@ export function createProductionMcpHttpServer(options:ProductionMcpServerOptions
   const requestUrl=new URL(rawUrl,`http://${req.headers.host??"localhost"}`);
   if(requestUrl.pathname==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.9"});
   if(requestUrl.pathname==="/.well-known/oauth-protected-resource"||requestUrl.pathname===scopedMetadataPath)return json(res,200,metadata);
-  // Compatibility endpoint for MCP/ChatGPT OAuth discovery. Some clients probe
-  // the resource origin before following the PRM authorization_servers value.
-  // Proxy Clerk's canonical RFC 8414 document verbatim so DCR + PKCE S256 are
-  // visible at the MCP origin too; never synthesize security capabilities.
   if(requestUrl.pathname==="/.well-known/oauth-authorization-server"){
    try{const upstream=`${options.issuer.replace(/\/$/,"")}/.well-known/oauth-authorization-server`;const response=await fetch(upstream,{headers:{accept:"application/json"}});if(!response.ok)return json(res,502,{error:"OAUTH_METADATA_UPSTREAM_FAILED"});const document=await response.json();return json(res,200,document);}catch{return json(res,502,{error:"OAUTH_METADATA_UPSTREAM_FAILED"});}
   }
@@ -51,6 +47,6 @@ export function createProductionMcpHttpServer(options:ProductionMcpServerOptions
  return{server,repo,host,port,async listen(){await new Promise<void>((resolve,reject)=>{server.once("error",reject);server.listen(port,host,()=>resolve());});const addr=server.address(),actual=typeof addr==="object"&&addr?addr.port:port;return{url:`http://${host}:${actual}/mcp`,baseUrl:`http://${host}:${actual}`};},async close(){await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await repo.close();}};
 }
 
-export async function productionVerifierFromEnvironment(env:NodeJS.ProcessEnv=process.env):Promise<Rs256JwksTokenVerifier>{const issuer=env.VISUAL4D_OIDC_ISSUER,audience=env.VISUAL4D_OIDC_AUDIENCE;if(!issuer||!audience)throw new Error("VISUAL4D_OIDC_ISSUER and VISUAL4D_OIDC_AUDIENCE are required");let jwksUri=env.VISUAL4D_OIDC_JWKS_URI;if(!jwksUri){const discovery=await discoverOidcConfiguration({issuer,...(env.VISUAL4D_OIDC_DISCOVERY_URL?{discoveryUrl:env.VISUAL4D_OIDC_DISCOVERY_URL}:{})});assertPkceS256(discovery);jwksUri=discovery.jwks_uri;}return new Rs256JwksTokenVerifier({issuer,audience,jwksUri});}
+export async function productionVerifierFromEnvironment(env:NodeJS.ProcessEnv=process.env):Promise<Rs256JwksTokenVerifier>{const issuer=env.VISUAL4D_OIDC_ISSUER,audience=env.VISUAL4D_OIDC_AUDIENCE;if(!issuer)throw new Error("VISUAL4D_OIDC_ISSUER is required");let jwksUri=env.VISUAL4D_OIDC_JWKS_URI;if(!jwksUri){const discovery=await discoverOidcConfiguration({issuer,...(env.VISUAL4D_OIDC_DISCOVERY_URL?{discoveryUrl:env.VISUAL4D_OIDC_DISCOVERY_URL}:{})});assertPkceS256(discovery);jwksUri=discovery.jwks_uri;}return new Rs256JwksTokenVerifier({issuer,...(audience?{audience}:{}),jwksUri});}
 
 if(process.argv[1]&&new URL(import.meta.url).pathname===process.argv[1]){const databaseUrl=process.env.DATABASE_URL,issuer=process.env.VISUAL4D_OIDC_ISSUER,resourceUri=process.env.VISUAL4D_MCP_RESOURCE_URI;if(!databaseUrl||!issuer||!resourceUri)throw new Error("DATABASE_URL, VISUAL4D_OIDC_ISSUER and VISUAL4D_MCP_RESOURCE_URI are required");const verifier=await productionVerifierFromEnvironment();const app=createProductionMcpHttpServer({databaseUrl,verifier,issuer,resourceUri,host:process.env.VISUAL4D_MCP_HOST??"0.0.0.0",port:Number(process.env.PORT??process.env.VISUAL4D_MCP_PORT??8787),rateLimitPerMinute:Number(process.env.VISUAL4D_RATE_LIMIT_PER_MINUTE??120)});const{baseUrl}=await app.listen();console.error(`Visual 4D production OAuth MCP listening at ${baseUrl}/mcp`);}
