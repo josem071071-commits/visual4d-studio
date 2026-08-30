@@ -30,6 +30,10 @@ Sprint 3.3 closes only when CI proves:
 6. a brand-styled reference SVG is generated;
 7. PostgreSQL/MCP certification remains green.
 
+## Certification status
+
+Implementation complete; external CI certification pending for this commit line.
+
 ## Next increment
 
 Sprint 3.4: application-facing render service contract that composes validated layout, content, asset binding, identity, RenderSpec, SVG output, and provenance summary behind one deterministic service boundary.
