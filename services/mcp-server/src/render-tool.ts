@@ -4,6 +4,7 @@ import type { FlyerRenderContent } from "../../../packages/renderer/src/index.js
 import type { RasterAssetBinding } from "../../../packages/asset-binding/src/index.js";
 import type { VisualIdentityTokens } from "../../../packages/identity-style/src/index.js";
 import { renderVisual4DFlyer } from "../../../packages/render-service/src/index.js";
+import { RENDER_PREVIEW_TOOL_META } from "./apps-ui.js";
 
 const SOURCE_TYPES=["USER_INPUT","SOURCE_DOCUMENT","MASTER_ASSET","DOCUMENTARY_ASSET","INSTITUTIONAL_ASSET","GENERATED_ASSET","APPROVED_STRUCTURE","SYSTEM_DERIVED"] as const;
 const MEDIA_TYPES=["image/png","image/jpeg","image/webp"] as const;
@@ -52,5 +53,5 @@ const identitySchema=strict(["version","colors","typography"],{version:{type:"st
 const assetSchema=strict(["elementId","assetId","sourceType","generatedByAI","documentary","approved","approvedAt","mediaType","dataUri"],{elementId:{type:"string",enum:["hero"]},assetId:{type:"string",minLength:1},sourceType:{type:"string",enum:SOURCE_TYPES},generatedByAI:{type:"boolean"},documentary:{type:"boolean"},approved:{type:"boolean"},approvedAt:{anyOf:[{type:"string"},{type:"null"}]},mediaType:{type:"string",enum:MEDIA_TYPES},dataUri:{type:"string",minLength:1,maxLength:60000}});
 
 export function createRenderPreviewTool():ToolDefinition{
- return{name:"generation.render_preview",description:"Render a deterministic Visual 4D preview from validated layout intent, content, identity tokens and an optional inline raster hero asset. This tool is read-only and does not persist, approve or finalize anything.",inputSchema:strict(["intent","content","identity"],{intent:intentSchema,content:contentSchema,identity:identitySchema,heroAsset:assetSchema}),annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false},execute:async input=>{const heroAsset=parseAsset(input);const request={intent:parseIntent(input),content:parseContent(input),identity:parseIdentity(input),...(heroAsset===undefined?{}:{heroAsset})};return renderVisual4DFlyer(request);}};
+ return{name:"generation.render_preview",title:"Visual 4D Render Preview",description:"Render a deterministic Visual 4D preview from validated layout intent, content, identity tokens and an optional inline raster hero asset. Use this when the user asks to preview or visualize a Visual 4D composition. This tool is read-only and does not persist, approve or finalize anything.",inputSchema:strict(["intent","content","identity"],{intent:intentSchema,content:contentSchema,identity:identitySchema,heroAsset:assetSchema}),annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false},_meta:RENDER_PREVIEW_TOOL_META,execute:async input=>{const heroAsset=parseAsset(input);const request={intent:parseIntent(input),content:parseContent(input),identity:parseIdentity(input),...(heroAsset===undefined?{}:{heroAsset})};return renderVisual4DFlyer(request);}};
 }
