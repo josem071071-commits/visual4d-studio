@@ -23,7 +23,8 @@ interface JwksDocument { keys?: Jwk[]; }
 
 export interface JwksJwtVerifierOptions {
   issuer: string;
-  audience: string;
+  /** Optional for DCR clients whose OAuth client_id (and therefore aud) is dynamic. */
+  audience?: string;
   jwksUri: string;
   cacheTtlMs?: number;
   fetchJson?: (url:string)=>Promise<unknown>;
@@ -83,10 +84,13 @@ export class Rs256JwksTokenVerifier implements ProductionTokenVerifier {
     if(!valid) throw new ProductionAuthError(401,"INVALID_JWT_SIGNATURE");
     if(claims.iss!==this.options.issuer) throw new ProductionAuthError(401,"INVALID_TOKEN_ISSUER");
     const audience=normalizeAudience(claims.aud);
-    if(!audience.includes(this.options.audience)) throw new ProductionAuthError(401,"INVALID_TOKEN_AUDIENCE");
+    if(this.options.audience!==undefined&&!audience.includes(this.options.audience)) throw new ProductionAuthError(401,"INVALID_TOKEN_AUDIENCE");
     if(typeof claims.sub!=="string"||claims.sub.trim()==="") throw new ProductionAuthError(401,"TOKEN_SUBJECT_REQUIRED");
     if(typeof claims.exp!=="number") throw new ProductionAuthError(401,"TOKEN_EXP_REQUIRED");
+    const now=Math.floor(Date.now()/1000);
+    if(claims.exp<=now) throw new ProductionAuthError(401,"TOKEN_EXPIRED");
     if(claims.nbf!==undefined&&typeof claims.nbf!=="number") throw new ProductionAuthError(401,"INVALID_TOKEN_NBF");
+    if(typeof claims.nbf==="number"&&claims.nbf>now) throw new ProductionAuthError(401,"TOKEN_NOT_YET_VALID");
     return {
       subject:claims.sub,
       issuer:claims.iss,
