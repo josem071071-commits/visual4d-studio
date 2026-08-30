@@ -7,6 +7,7 @@ export interface OidcDiscoveryDocument {
   jwks_uri:string;
   authorization_endpoint?:string;
   token_endpoint?:string;
+  registration_endpoint?:string;
   scopes_supported?:string[];
   code_challenge_methods_supported?:string[];
 }
@@ -22,9 +23,15 @@ function requiredString(record:Record<string,unknown>,key:string):string{const v
 function optionalString(record:Record<string,unknown>,key:string):string|undefined{const value=record[key];if(value===undefined)return undefined;if(typeof value!=="string")throw new OidcConfigurationError(`INVALID_OIDC_${key.toUpperCase()}`);return value;}
 function optionalStrings(record:Record<string,unknown>,key:string):string[]|undefined{const value=record[key];if(value===undefined)return undefined;if(!Array.isArray(value)||!value.every(v=>typeof v==="string"))throw new OidcConfigurationError(`INVALID_OIDC_${key.toUpperCase()}`);return value as string[];}
 
+/**
+ * OAuth clients (including ChatGPT MCP connectors) validate PKCE against
+ * RFC 8414 Authorization Server Metadata. Clerk publishes DCR and PKCE S256
+ * on this endpoint, so use it as the production discovery source instead of
+ * relying on the OIDC discovery document.
+ */
 export function defaultOidcDiscoveryUrl(issuer:string):string {
   const normalized=issuer.endsWith("/")?issuer.slice(0,-1):issuer;
-  return `${normalized}/.well-known/openid-configuration`;
+  return `${normalized}/.well-known/oauth-authorization-server`;
 }
 
 export async function discoverOidcConfiguration(options:OidcDiscoveryOptions):Promise<OidcDiscoveryDocument>{
@@ -33,10 +40,10 @@ export async function discoverOidcConfiguration(options:OidcDiscoveryOptions):Pr
   const issuer=requiredString(raw,"issuer");
   if(issuer!==options.issuer)throw new OidcConfigurationError("OIDC_ISSUER_MISMATCH");
   const jwksUri=requiredString(raw,"jwks_uri");
-  const authorizationEndpoint=optionalString(raw,"authorization_endpoint"),tokenEndpoint=optionalString(raw,"token_endpoint"),scopesSupported=optionalStrings(raw,"scopes_supported"),pkce=optionalStrings(raw,"code_challenge_methods_supported");
-  return {issuer,jwks_uri:jwksUri,...(authorizationEndpoint===undefined?{}:{authorization_endpoint:authorizationEndpoint}),...(tokenEndpoint===undefined?{}:{token_endpoint:tokenEndpoint}),...(scopesSupported===undefined?{}:{scopes_supported:scopesSupported}),...(pkce===undefined?{}:{code_challenge_methods_supported:pkce})};
+  const authorizationEndpoint=optionalString(raw,"authorization_endpoint"),tokenEndpoint=optionalString(raw,"token_endpoint"),registrationEndpoint=optionalString(raw,"registration_endpoint"),scopesSupported=optionalStrings(raw,"scopes_supported"),pkce=optionalStrings(raw,"code_challenge_methods_supported");
+  return {issuer,jwks_uri:jwksUri,...(authorizationEndpoint===undefined?{}:{authorization_endpoint:authorizationEndpoint}),...(tokenEndpoint===undefined?{}:{token_endpoint:tokenEndpoint}),...(registrationEndpoint===undefined?{}:{registration_endpoint:registrationEndpoint}),...(scopesSupported===undefined?{}:{scopes_supported:scopesSupported}),...(pkce===undefined?{}:{code_challenge_methods_supported:pkce})};
 }
 
 export function assertPkceS256(document:OidcDiscoveryDocument):void {
-  if(document.code_challenge_methods_supported&&!document.code_challenge_methods_supported.includes("S256"))throw new OidcConfigurationError("OIDC_PKCE_S256_REQUIRED");
+  if(!document.code_challenge_methods_supported?.includes("S256"))throw new OidcConfigurationError("OIDC_PKCE_S256_REQUIRED");
 }
