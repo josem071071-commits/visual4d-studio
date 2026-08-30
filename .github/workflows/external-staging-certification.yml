@@ -26,21 +26,12 @@ jobs:
             https://honest-success-production-6b40.up.railway.app/mcp)"
           test "$STATUS" = "401"
 
-      - name: Development approval bridge remains unavailable
-        run: |
-          set -euo pipefail
-          STATUS="$(curl --silent --output /tmp/approval-body --write-out '%{http_code}' \
-            -X POST \
-            -H 'content-type: application/json' \
-            --data '{}' \
-            https://honest-success-production-6b40.up.railway.app/local/approval-grants)"
-          test "$STATUS" = "404"
-
   authenticated-remote-mcp:
     needs: public-health-and-auth-boundary
     runs-on: ubuntu-latest
     env:
       VISUAL4D_STAGING_AUTH_TOKEN: ${{ secrets.VISUAL4D_STAGING_AUTH_TOKEN }}
+      VISUAL4D_STAGING_URL: https://honest-success-production-6b40.up.railway.app/mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,8 +42,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$VISUAL4D_STAGING_AUTH_TOKEN"
+      - name: Development approval bridge remains unavailable
+        run: |
+          set -euo pipefail
+          STATUS="$(curl --silent --output /tmp/approval-body --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $VISUAL4D_STAGING_AUTH_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"projectId":"none","kind":"ANALYSIS","artifactVersionId":"none"}' \
+            https://honest-success-production-6b40.up.railway.app/local/approval-grants)"
+          test "$STATUS" = "404"
       - run: npm ci
       - name: Authenticated remote MCP discovery and render
-        env:
-          VISUAL4D_STAGING_URL: https://honest-success-production-6b40.up.railway.app/mcp
         run: node tests/integration/mcp-remote-smoke.mjs
