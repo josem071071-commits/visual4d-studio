@@ -2,7 +2,7 @@
 
 **Versión:** 1.0 — borrador de publicación  
 **Fecha:** 29 de agosto de 2026  
-**Responsable:** José Guerrero / Visual 4D Studio
+**Responsable:** Jose Guerrero / Visual 4D Studio
 
 ## 1. Alcance
 Esta política describe cómo Visual 4D Studio trata información cuando una persona utiliza la aplicación, sus herramientas MCP o sus experiencias integradas en ChatGPT. Visual 4D Studio es una plataforma de asistencia para crear, estructurar, verificar y producir piezas visuales mediante el Método Visual 4D.
@@ -35,7 +35,7 @@ Los datos se conservarán únicamente durante el tiempo razonablemente necesario
 Visual 4D Studio utiliza controles diseñados para reducir acceso no autorizado, incluyendo autenticación, separación entre usuarios/proyectos, autorización de operaciones, HTTPS, límites operativos y controles explícitos para acciones sensibles. Ningún sistema puede garantizar seguridad absoluta.
 
 ## 9. Derechos y solicitudes
-Cuando resulte aplicable, una persona podrá solicitar acceso, corrección o eliminación de sus datos personales y ejercer otros derechos reconocidos por la legislación correspondiente. Antes del lanzamiento público se publicará un canal de privacidad verificable para estas solicitudes.
+Cuando resulte aplicable, una persona podrá solicitar acceso, corrección o eliminación de sus datos personales y ejercer otros derechos reconocidos por la legislación correspondiente. Las solicitudes pueden enviarse al correo de contacto indicado abajo.
 
 ## 10. Menores
 Visual 4D Studio no está diseñado para recopilar intencionalmente datos personales de menores de edad sin la autorización o base legal requerida.
@@ -47,8 +47,9 @@ Los proveedores tecnológicos pueden procesar información en distintos países.
 Esta política podrá actualizarse cuando cambien las funciones, proveedores o requisitos regulatorios. La fecha y versión vigentes se mostrarán en esta página.
 
 ## 13. Contacto
-**Responsable:** José Guerrero / Visual 4D Studio  
-**Correo de privacidad:** PENDIENTE DE DEFINIR ANTES DE PUBLICACIÓN  
-**Sitio oficial:** PENDIENTE DE DEFINIR ANTES DE PUBLICACIÓN
+**Responsable:** Jose Guerrero / Visual 4D Studio  
+**País:** Estados Unidos  
+**Correo de privacidad y soporte:** Josem071071@gmail.com  
+**Sitio oficial previsto:** https://www.visual4dstudio.com
 
-> Estado: documento preparado para revisión jurídica y publicación. Los campos marcados como PENDIENTE deben resolverse antes de enviar la aplicación a distribución pública.
+> Estado: contenido de contacto completado. La URL pública definitiva de esta política deberá verificarse sobre HTTPS antes de la distribución pública.
