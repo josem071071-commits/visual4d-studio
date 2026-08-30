@@ -12,7 +12,7 @@ const psql = spawnSync("psql", ["--version"], { encoding: "utf8" });
 const canRun = Boolean(dbUrl) && psql.status === 0;
 
 function runPsql(sql, env = {}) {
-  const result = spawnSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-X", "-q"], {
+  const result = spawnSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A"], {
     input: sql,
     encoding: "utf8",
     env: { ...process.env, ...env }
