@@ -28,6 +28,28 @@
   "authentication": {
     "staging": "static-bearer-test-only",
     "production_target": "oauth2.1-oidc-authorization-code-pkce",
+    "production_provider": {
+      "name": "Clerk",
+      "environment": "development",
+      "discovery_url": "https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration",
+      "client_type": "public-pkce",
+      "consent_screen": true,
+      "requested_scopes": [
+        "email",
+        "profile",
+        "offline_access",
+        "visual4d:read",
+        "visual4d:render"
+      ],
+      "custom_scopes_advertised": [
+        "visual4d:read",
+        "visual4d:render",
+        "visual4d:write",
+        "visual4d:approve",
+        "visual4d:identity"
+      ],
+      "redirect_uri_status": "pending-chatgpt-callback"
+    },
     "production_ready": false
   },
   "legal": {
