@@ -11,7 +11,8 @@
     "staging_endpoint": "https://honest-success-production-6b40.up.railway.app/mcp",
     "primary_transport_endpoint": "https://mcp.visual4dstudio.com/mcp",
     "primary_health_endpoint": "https://mcp.visual4dstudio.com/healthz",
-    "transport_domain_status": "https-active-certification-pending-ci",
+    "transport_domain_status": "ci-certified",
+    "transport_certification_run_id": 33296265862,
     "production_endpoint": null,
     "public_domain": "https://www.visual4dstudio.com"
   },
