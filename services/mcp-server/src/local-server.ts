@@ -73,6 +73,7 @@ export function createLocalMcpHttpServer(options:LocalMcpServerOptions){
     if(!limiter.allow(actor.userId))return json(res,429,{error:"RATE_LIMIT_EXCEEDED"});
 
     if(req.url==="/local/approval-grants"&&req.method==="POST"){
+      // Development-only bridge. Production must bind grants to an authenticated UI action, not this header.
       if(options.allowDevApprovalGrants!==true)return json(res,404,{error:"NOT_FOUND"});
       if(req.headers["x-visual4d-dev-user-action"]!=="approve")return json(res,403,{error:"EXPLICIT_DEV_USER_ACTION_REQUIRED"});
       try{
