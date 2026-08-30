@@ -32,7 +32,8 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
 export function createProductionMcpHttpServer(options:ProductionMcpServerOptions){
  const repo=new PostgresProjectRepository({connectionString:options.databaseUrl});const workflow=new ProjectWorkflowService(repo);const grants=new PostgresApprovalGrantStore(repo.pool);const webHandler=createMcpHandler(()=>buildProductionMcpServer(workflow,grants));const mcpHandler=toNodeHandler(webHandler);const host=options.host??"127.0.0.1",port=options.port??8787,limiter=new MinuteRateLimiter(options.rateLimitPerMinute??120);const metadata=visual4DProtectedResourceMetadata(options.resourceUri,options.issuer);const scopedMetadataPath=new URL(protectedResourceMetadataUrl(options.resourceUri)).pathname;
  const server=createServer(async(req,res)=>{
-  const requestUrl=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
+  const rawUrl=req.url??"/";
+  const requestUrl=new URL(rawUrl,`http://${req.headers.host??"localhost"}`);
   if(requestUrl.pathname==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.9"});
   if(requestUrl.pathname==="/.well-known/oauth-protected-resource"||requestUrl.pathname===scopedMetadataPath)return json(res,200,metadata);
   // Compatibility endpoint for MCP/ChatGPT OAuth discovery. Some clients probe
@@ -45,7 +46,7 @@ export function createProductionMcpHttpServer(options:ProductionMcpServerOptions
   if(requestUrl.pathname!=="/mcp")return json(res,404,{error:"NOT_FOUND"});
   let actor:ActorContext;try{actor=await authenticateProductionBearer(typeof req.headers.authorization==="string"?req.headers.authorization:undefined,options.verifier);}catch(error){res.setHeader("www-authenticate",visual4DBearerChallenge(options.resourceUri));if(error instanceof ProductionAuthError)return json(res,error.statusCode,{error:error.code});return json(res,401,{error:"UNAUTHORIZED"});}
   if(!limiter.allow(actor.userId))return json(res,429,{error:"RATE_LIMIT_EXCEEDED"});
-  const request={method:req.method??"GET",url:req.url,headers:req.headers,socket:req.socket,on:req.on.bind(req),once:req.once.bind(req),pipe:req.pipe.bind(req),[Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)};return actorStorage.run(actor,()=>mcpHandler(request,res));
+  const request={method:req.method??"GET",url:rawUrl,headers:req.headers,socket:req.socket,on:req.on.bind(req),once:req.once.bind(req),pipe:req.pipe.bind(req),[Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)};return actorStorage.run(actor,()=>mcpHandler(request,res));
  });
  return{server,repo,host,port,async listen(){await new Promise<void>((resolve,reject)=>{server.once("error",reject);server.listen(port,host,()=>resolve());});const addr=server.address(),actual=typeof addr==="object"&&addr?addr.port:port;return{url:`http://${host}:${actual}/mcp`,baseUrl:`http://${host}:${actual}`};},async close(){await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await repo.close();}};
 }
