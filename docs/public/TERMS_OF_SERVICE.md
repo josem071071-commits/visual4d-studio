@@ -1,7 +1,7 @@
 # Términos de Servicio — Visual 4D Studio
 
 **Versión:** 1.0 — borrador de publicación  
-**Fecha:** 29 de agosto de 2026  
+**Fecha:** 30 de agosto de 2026  
 **Titular:** Jose Guerrero / Visual 4D Studio
 
 ## 1. Aceptación
@@ -45,14 +45,17 @@ En la máxima medida permitida por la legislación aplicable, Visual 4D Studio n
 ## 13. Terminación
 El acceso puede suspenderse cuando sea necesario para proteger usuarios, infraestructura, derechos de terceros o cumplimiento normativo, o cuando exista una violación material de estos términos.
 
-## 14. Legislación y resolución de controversias
-El operador ha indicado Estados Unidos como país y no ha designado todavía una jurisdicción estatal o foro contractual específico. Este apartado debe revisarse y completarse antes de una distribución pública general que requiera una cláusula de ley aplicable o foro.
+## 14. Legislación aplicable y jurisdicción
+Estos Términos se regirán e interpretarán conforme a las leyes del Estado de Florida, Estados Unidos de América, sin perjuicio de las normas imperativas que resulten aplicables. Salvo que una norma imperativa aplicable disponga lo contrario, las controversias sujetas válidamente a elección contractual de foro se someterán a los tribunales competentes ubicados en Miami-Dade County, Florida.
+
+Esta cláusula es un borrador contractual y debe someterse a revisión jurídica profesional antes de una distribución pública general.
 
 ## 15. Contacto
 **Titular y operador:** Jose Guerrero / Visual 4D Studio  
 **País:** Estados Unidos  
+**Estado:** Florida  
+**Jurisdicción contractual prevista:** Miami-Dade County, Florida  
 **Correo de soporte/legal:** Josem071071@gmail.com  
-**Sitio oficial previsto:** https://www.visual4dstudio.com  
-**Jurisdicción específica:** N/A / no designada todavía
+**Sitio oficial previsto:** https://www.visual4dstudio.com
 
-> Estado: titularidad, país y contacto completados. La cláusula jurídica de jurisdicción específica continúa pendiente de revisión antes de publicación general.
+> Estado: datos del operador y jurisdicción completados. Documento pendiente de revisión jurídica profesional y publicación en HTTPS antes de distribución pública.
