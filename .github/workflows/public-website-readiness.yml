@@ -1,0 +1,25 @@
+name: Visual 4D Public Website Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/validate-public-website.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-public-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate public website
+        run: node scripts/validate-public-website.mjs
+      - name: Confirm custom MCP health
+        run: curl --fail --silent --show-error https://mcp.visual4dstudio.com/healthz
