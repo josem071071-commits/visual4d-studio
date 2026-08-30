@@ -7,6 +7,7 @@
     "types": ["node"]
   },
   "include": [
+    "packages/types/**/*.d.ts",
     "packages/domain/src/**/*.ts",
     "packages/repositories/src/**/*.ts",
     "packages/postgres-repository/src/**/*.ts",
