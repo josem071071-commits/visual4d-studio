@@ -17,14 +17,14 @@ import { protectedResourceMetadataUrl, visual4DBearerChallenge, visual4DProtecte
 
 export interface ProductionMcpServerOptions { databaseUrl:string; verifier:ProductionTokenVerifier; issuer:string; resourceUri:string; host?:string; port?:number; rateLimitPerMinute?:number; }
 const actorStorage=new AsyncLocalStorage<ActorContext>();
-function json(res:ServerResponse,status:number,body:unknown){const data=JSON.stringify(body);res.statusCode=status;res.setHeader("content-type","application/json; charset=utf-8");res.setHeader("content-length",Buffer.byteLength(data));res.end(data);}
+function json(res:ServerResponse,status:number,body:unknown){const data=JSON.stringify(body);res.statusCode=status;res.setHeader("content-type","application/json; charset=utf-8");res.setHeader("cache-control","no-store");res.setHeader("content-length",Buffer.byteLength(data));res.end(data);}
 function record(value:unknown):Record<string,unknown>|undefined{return value!==null&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:undefined;}
 class MinuteRateLimiter{private buckets=new Map<string,{minute:number,count:number}>();constructor(private readonly limit:number){}allow(key:string){const minute=Math.floor(Date.now()/60000),bucket=this.buckets.get(key);if(!bucket||bucket.minute!==minute){this.buckets.set(key,{minute,count:1});return true;}if(bucket.count>=this.limit)return false;bucket.count++;return true;}}
 
 export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:PostgresApprovalGrantStore):McpServer{
  const actorProvider=()=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");return actor;};
  const defs=[...createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action)),createRenderPreviewTool()];
- const server=new McpServer({name:"visual4d-production",version:"0.4.8"},{capabilities:{tools:{},resources:{}}});registerRenderPreviewResource(server);
+ const server=new McpServer({name:"visual4d-production",version:"0.4.9"},{capabilities:{tools:{},resources:{}}});registerRenderPreviewResource(server);
  for(const def of defs){server.registerTool(def.name,{...(def.title===undefined?{}:{title:def.title}),description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations}),...(def._meta===undefined?{}:{_meta:def._meta})},async(args)=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");const granted=new Set(actor.permissions??[]);for(const scope of requiredScopesForTool(def.name)){if(!granted.has(scope))return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:"INSUFFICIENT_SCOPE",required:[scope]})}]};}try{const out=await def.execute(args as Record<string,unknown>);const structuredContent=record(out);return{content:[{type:"text" as const,text:JSON.stringify(out)}],...(structuredContent===undefined?{}:{structuredContent}),...(def._meta===undefined?{}:{_meta:def._meta})};}catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}});}
  return server;
 }
@@ -32,9 +32,17 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
 export function createProductionMcpHttpServer(options:ProductionMcpServerOptions){
  const repo=new PostgresProjectRepository({connectionString:options.databaseUrl});const workflow=new ProjectWorkflowService(repo);const grants=new PostgresApprovalGrantStore(repo.pool);const webHandler=createMcpHandler(()=>buildProductionMcpServer(workflow,grants));const mcpHandler=toNodeHandler(webHandler);const host=options.host??"127.0.0.1",port=options.port??8787,limiter=new MinuteRateLimiter(options.rateLimitPerMinute??120);const metadata=visual4DProtectedResourceMetadata(options.resourceUri,options.issuer);const scopedMetadataPath=new URL(protectedResourceMetadataUrl(options.resourceUri)).pathname;
  const server=createServer(async(req,res)=>{
-  if(req.url==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.8"});
-  if(req.url==="/.well-known/oauth-protected-resource"||req.url===scopedMetadataPath)return json(res,200,metadata);
-  if(req.url!=="/mcp")return json(res,404,{error:"NOT_FOUND"});
+  const requestUrl=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);
+  if(requestUrl.pathname==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.9"});
+  if(requestUrl.pathname==="/.well-known/oauth-protected-resource"||requestUrl.pathname===scopedMetadataPath)return json(res,200,metadata);
+  // Compatibility endpoint for MCP/ChatGPT OAuth discovery. Some clients probe
+  // the resource origin before following the PRM authorization_servers value.
+  // Proxy Clerk's canonical RFC 8414 document verbatim so DCR + PKCE S256 are
+  // visible at the MCP origin too; never synthesize security capabilities.
+  if(requestUrl.pathname==="/.well-known/oauth-authorization-server"){
+   try{const upstream=`${options.issuer.replace(/\/$/,"")}/.well-known/oauth-authorization-server`;const response=await fetch(upstream,{headers:{accept:"application/json"}});if(!response.ok)return json(res,502,{error:"OAUTH_METADATA_UPSTREAM_FAILED"});const document=await response.json();return json(res,200,document);}catch{return json(res,502,{error:"OAUTH_METADATA_UPSTREAM_FAILED"});}
+  }
+  if(requestUrl.pathname!=="/mcp")return json(res,404,{error:"NOT_FOUND"});
   let actor:ActorContext;try{actor=await authenticateProductionBearer(typeof req.headers.authorization==="string"?req.headers.authorization:undefined,options.verifier);}catch(error){res.setHeader("www-authenticate",visual4DBearerChallenge(options.resourceUri));if(error instanceof ProductionAuthError)return json(res,error.statusCode,{error:error.code});return json(res,401,{error:"UNAUTHORIZED"});}
   if(!limiter.allow(actor.userId))return json(res,429,{error:"RATE_LIMIT_EXCEEDED"});
   const request={method:req.method??"GET",url:req.url,headers:req.headers,socket:req.socket,on:req.on.bind(req),once:req.once.bind(req),pipe:req.pipe.bind(req),[Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)};return actorStorage.run(actor,()=>mcpHandler(request,res));
