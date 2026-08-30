@@ -35,14 +35,17 @@ test("Sprint 3.1 renders deterministic SVG at exact canvas size", () => {
   assert.equal(a, b);
   assert.match(a, /<svg[^>]*width="1080"[^>]*height="1920"/);
   assert.match(a, /id="headline"/);
-  assert.match(a, /Primera composición renderizada/);
+  assert.match(a, />Primera composición<\/tspan>/);
+  assert.match(a, />renderizada<\/tspan>/);
 });
 
 test("renderer escapes user text instead of injecting markup", () => {
   const spec = createFlyerRenderSpec(layout, { ...content, headline: "Diseño <seguro> & verificable" });
   const svg = renderSvg(spec);
   assert.doesNotMatch(svg, /Diseño <seguro>/);
-  assert.match(svg, /Diseño &lt;seguro&gt; &amp; verificable/);
+  assert.match(svg, /Diseño &lt;seguro&gt; &amp;/);
+  assert.match(svg, />verificable<\/tspan>/);
+  assert.doesNotMatch(svg, /<seguro>/);
 });
 
 test("RenderSpec rejects duplicate ids and elements outside canvas", () => {
