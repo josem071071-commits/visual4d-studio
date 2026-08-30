@@ -9,7 +9,8 @@
     "protocol": "MCP",
     "apps_sdk_ui": true,
     "staging_endpoint": "https://honest-success-production-6b40.up.railway.app/mcp",
-    "production_endpoint": null
+    "production_endpoint": null,
+    "public_domain": "https://www.visual4dstudio.com"
   },
   "tools": [
     {
@@ -58,8 +59,11 @@
     "support_url": null,
     "security_url": null,
     "license": "proprietary",
-    "operator": null,
-    "jurisdiction": null
+    "legal_name": "Jose Guerrero",
+    "operator": "Jose Guerrero",
+    "country": "United States",
+    "jurisdiction": "N/A",
+    "support_email": "Josem071071@gmail.com"
   },
   "branding": {
     "icon_status": "proposal-not-approved",
