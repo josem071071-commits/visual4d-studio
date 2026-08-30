@@ -1,8 +1,8 @@
 # Visual 4D Studio — App Registration & Publication Package
 
-**Package version:** 1.0  
-**Prepared:** 29 August 2026  
-**Target:** ChatGPT Apps SDK / MCP / future Plugin Directory distribution
+**Package version:** 1.1  
+**Prepared:** 30 August 2026  
+**Target:** ChatGPT Apps SDK / MCP / ChatGPT app directory submission
 
 ## 1. Public identity
 
@@ -70,13 +70,13 @@ categories:
   - Design
   - Productivity
 mcp_transport: Streamable HTTP
-mcp_endpoint: CURRENT_CERTIFIED_RAILWAY_MCP_ENDPOINT
-health_endpoint: CURRENT_CERTIFIED_RAILWAY_HEALTH_ENDPOINT
+staging_mcp_endpoint: https://honest-success-production-6b40.up.railway.app/mcp
+production_mcp_endpoint: REQUIRED_BEFORE_PUBLIC_SUBMISSION
 privacy_policy: PUBLIC_HTTPS_URL_REQUIRED
 terms_of_service: PUBLIC_HTTPS_URL_REQUIRED
 support_url: PUBLIC_HTTPS_URL_REQUIRED
 support_email: REQUIRED_BEFORE_PUBLIC_SUBMISSION
-developer: José Guerrero / Visual 4D Studio
+developer: Visual 4D Studio
 ```
 
 ## 4. Capability statement
@@ -90,6 +90,9 @@ The tool exposes a ChatGPT Apps SDK/MCP Apps UI resource for an inline Visual 4D
 ### Broader workflow capabilities
 The MCP service also contains workflow tools for analysis, structure, resources, art direction, design versions, verification, explicit approvals and identity activation. Write-capable tools must remain clearly classified and protected by authorization and explicit approval where applicable.
 
+### Initial ChatGPT authorization surface
+The first external ChatGPT connection is deliberately constrained to read/render behavior. It must not receive `visual4d:write`, `visual4d:approve` or `visual4d:identity` until those actions have their own product and safety review.
+
 ## 5. Authentication architecture for real users
 
 ### Decision
@@ -98,31 +101,31 @@ The MCP service also contains workflow tools for analysis, structure, resources,
 ### Production target
 Use **per-user OAuth 2.1 / OpenID Connect-compatible authorization** with Authorization Code + PKCE, short-lived access tokens and refresh-token rotation where supported.
 
+### Clerk development configuration completed
+- Provider: Clerk.
+- Environment: Development only.
+- Discovery URL: `https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration`.
+- Client type: Public OAuth client.
+- Authorization flow: Authorization Code + PKCE.
+- Consent screen: enabled.
+- Base scopes currently selected by Clerk/client: `email`, `profile`, `offline_access`.
+- Visual 4D client scopes: `visual4d:read`, `visual4d:render`.
+- Custom advertised scopes created: `visual4d:read`, `visual4d:render`, `visual4d:write`, `visual4d:approve`, `visual4d:identity`.
+- Redirect URI: intentionally unset until ChatGPT/OpenAI supplies the exact callback through a supported registration/submission surface.
+
+Do not use the Clerk Client Secret for the intended public-PKCE connection. Never commit or paste it into chat.
+
 ### Required security properties
 1. Every external user receives an individual identity; never share one production bearer credential among users.
 2. Bind authenticated subject → Visual 4D actor/user → project ownership and permissions.
 3. Use HTTPS only.
-4. Short-lived access tokens; secrets never embedded in app metadata or source-controlled public files.
-5. Validate issuer, audience, expiry and scopes on every protected request.
-6. Apply least-privilege scopes, separating read and write capabilities where practical.
-7. Preserve explicit approval semantics for consequential mutations.
-8. Maintain rate limiting, request-size limits and timeout controls.
-9. Revoke sessions/tokens on account disablement or suspected compromise.
-10. Record security-relevant events without logging unnecessary user content or raw credentials.
-
-### Suggested scopes
-- `visual4d:read` — read project/status/output.
-- `visual4d:render` — request non-persistent previews.
-- `visual4d:write` — create/change project artifacts.
-- `visual4d:approve` — explicit approval operations.
-- `visual4d:identity` — manage institutional identity where authorized.
-
-### Rollout sequence
-**Stage A:** current authenticated staging remains isolated.  
-**Stage B:** introduce production identity provider and OAuth validation beside staging auth.  
-**Stage C:** certify multi-user isolation and scope enforcement.  
-**Stage D:** disable static bearer authentication on the public production endpoint.  
-**Stage E:** submit the OAuth-backed endpoint for distribution.
+4. Validate issuer, audience, expiry, signature and scopes on every protected request.
+5. Apply least-privilege scopes.
+6. Preserve explicit approval semantics for consequential mutations.
+7. Maintain rate limiting, request-size limits and timeout controls.
+8. Revoke sessions/tokens on account disablement or suspected compromise.
+9. Record security-relevant events without logging unnecessary user content or raw credentials.
+10. Publish RFC 9728 Protected Resource Metadata for the protected MCP resource.
 
 ## 6. Data and safety declaration
 
@@ -140,10 +143,24 @@ Use **per-user OAuth 2.1 / OpenID Connect-compatible authorization** with Author
 Repository drafts:
 - `docs/public/PRIVACY_POLICY.md`
 - `docs/public/TERMS_OF_SERVICE.md`
+- `docs/public/SECURITY.md`
 
 Before public submission these documents must be served through stable public HTTPS URLs and receive legal review appropriate to the chosen operating jurisdiction.
 
-## 8. Submission assets checklist
+## 8. OpenAI submission readiness
+
+The ChatGPT app-directory submission flow is treated as separate from in-product custom-app testing. A limitation in the current account UI must not be represented as a defect in the Visual 4D MCP implementation.
+
+Before submission:
+- verify the then-current OpenAI developer/safety/privacy/functionality guidelines;
+- provide a stable production MCP endpoint;
+- provide public legal/support URLs;
+- ensure tool annotations accurately describe read/write behavior;
+- provide final icon and screenshots/demo media;
+- verify OAuth callback and disconnect/revocation behavior;
+- test the actual production integration rather than staging.
+
+## 9. Submission assets checklist
 
 - [x] Canonical name defined.
 - [x] Short description defined.
@@ -153,48 +170,59 @@ Before public submission these documents must be served through stable public HT
 - [x] Iconography specification defined.
 - [x] Privacy policy draft created.
 - [x] Terms draft created.
-- [x] Public metadata template created.
-- [x] Production authentication architecture defined.
-- [x] Safety/data declaration defined.
-- [x] Certified remote MCP exists.
+- [x] Security disclosure draft created.
+- [x] Public metadata manifest created.
+- [x] Production authentication architecture implemented.
+- [x] Certified remote staging MCP exists.
 - [x] Apps SDK inline preview resource exists.
-- [ ] Final icon artwork exported.
+- [x] Clerk Development OAuth provider/client configured.
+- [x] Read/render least-privilege client scopes configured.
+- [x] Production JWT/JWKS validation and scope enforcement implemented.
+- [x] RFC 9728 Protected Resource Metadata implemented.
+- [x] Automated publication package validation added to CI.
+- [ ] Exact ChatGPT/OpenAI redirect URI obtained and configured.
+- [ ] OAuth authorization-code + PKCE flow certified end-to-end.
+- [ ] Final icon artwork exported and approved.
 - [ ] Stable public website/domain selected.
 - [ ] Privacy policy published at public HTTPS URL.
 - [ ] Terms published at public HTTPS URL.
-- [ ] Support URL published.
+- [ ] Support and security URLs published.
 - [ ] Support/privacy email selected.
 - [ ] Operating entity/jurisdiction confirmed.
-- [ ] Production OAuth/OIDC implemented and externally certified.
-- [ ] Multi-user authorization/isolation penetration tests completed.
-- [ ] Submission screenshots/demo media captured from the final production integration.
-- [ ] Final developer/submission guidelines rechecked immediately before submission.
+- [ ] Production Clerk/OIDC instance and production endpoint externally certified.
+- [ ] Revocation/disconnection tests completed.
+- [ ] Submission screenshots/demo media captured from final production integration.
+- [ ] Final OpenAI submission guidelines rechecked immediately before submission.
 
-## 9. ChatGPT custom-app registration values
+## 10. ChatGPT custom-app registration values
 
-When the “Create app” surface is available, use:
+When a supported “Create app” or app-submission surface provides the connection fields, use:
 
 **Name:** Visual 4D Studio  
-**MCP endpoint:** production HTTPS `/mcp` endpoint (not a local URL)  
-**Authentication:** OAuth for public/multi-user distribution  
+**MCP endpoint:** production HTTPS `/mcp` endpoint, not staging/local  
+**Authentication:** OAuth/OIDC Authorization Code + PKCE  
+**OAuth scopes initially requested:** `visual4d:read`, `visual4d:render` plus provider-required identity/base scopes  
 **Logo:** final approved Visual 4D 1:1 icon  
-**Description:** use the short description above  
+**Description:** use the short description above
 
-Then run the platform’s tool analysis. Confirm that `generation.render_preview` is classified read-only and that every write/mutation tool is represented accurately before creating or publishing the app.
+Use the exact redirect/callback URI supplied by OpenAI/ChatGPT. Do not guess it.
 
-## 10. Distribution readiness gate
+Then run the platform's tool analysis and confirm that `generation.render_preview` is classified read-only and every future mutation tool is represented accurately before publishing.
 
-Visual 4D Studio is **registration-package ready** when all unchecked items in section 8 that are mandatory for the chosen distribution path are closed. It is **not public-production-auth ready** until OAuth/OIDC and multi-user authorization replace the shared staging credential on the production endpoint.
+## 11. Automated distribution gate
 
-## 11. Recommended next engineering sprint
+`npm run validate:publication` validates the manifest and required package files. The GitHub workflow `Visual 4D Publication Readiness` runs this check automatically.
 
-**Sprint 4.4 — Production Identity & Publication Surface**
+The package intentionally remains `publication_ready=false` until all external production/legal/branding gates are complete.
 
-Deliverables:
-1. production OAuth/OIDC provider integration;
-2. actor mapping and scopes;
-3. multi-user isolation tests;
-4. stable public `/privacy`, `/terms`, `/support` pages;
-5. final icon/wordmark assets;
-6. production endpoint certification;
-7. final submission manifest and screenshots.
+## 12. Current next milestone
+
+**Sprint 4.8 — Submission Surface Readiness**
+
+Remaining external dependencies:
+1. exact OpenAI/ChatGPT redirect URI through a supported registration/submission flow;
+2. production domain and production Clerk instance;
+3. public privacy/terms/support/security URLs;
+4. final approved brand assets;
+5. legal operator/jurisdiction/contact details;
+6. end-to-end production OAuth and disconnect certification.
