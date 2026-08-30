@@ -70,7 +70,10 @@ if (manifest.publication_ready === true) {
   if (!manifest.integration?.production_endpoint?.startsWith('https://')) fail('production_endpoint must be HTTPS before publication_ready=true');
   if (manifest.authentication?.production_ready !== true) fail('production authentication must be ready before publication_ready=true');
   if (!manifest.legal?.operator) fail('legal operator must be set before publication_ready=true');
-  if (!manifest.legal?.jurisdiction) fail('jurisdiction must be set before publication_ready=true');
+  const jurisdiction = String(manifest.legal?.jurisdiction ?? '').trim();
+  if (!jurisdiction || /^(n\/?a|none|pending|tbd|not[- ]?designated)$/i.test(jurisdiction)) {
+    fail('a specific, non-placeholder jurisdiction must be set before publication_ready=true');
+  }
   if (manifest.branding?.icon_status !== 'approved') fail('icon must be approved before publication_ready=true');
   if (manifest.branding?.wordmark_status !== 'approved') fail('wordmark must be approved before publication_ready=true');
 }
