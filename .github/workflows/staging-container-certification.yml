@@ -1,0 +1,100 @@
+name: Visual 4D Sprint 4.1 Staging Container Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'railway.json'
+      - '.env.staging.example'
+      - 'scripts/staging-mcp-smoke.mjs'
+      - '.github/workflows/staging-container-certification.yml'
+      - 'packages/**'
+      - 'services/**'
+      - 'database/migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+
+permissions:
+  contents: read
+
+jobs:
+  staging-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: visual4d
+          POSTGRES_PASSWORD: visual4d_staging_ci
+          POSTGRES_DB: visual4d_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U visual4d -d visual4d_staging"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      STAGING_DATABASE_URL: postgresql://visual4d:visual4d_staging_ci@127.0.0.1:5432/visual4d_staging
+      STAGING_MCP_TOKEN: sprint41-ci-secret
+      STAGING_MCP_URL: http://127.0.0.1:8787/mcp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Apply staging schema
+        run: |
+          set -euo pipefail
+          for file in database/migrations/*.sql; do
+            case "$file" in *.down.sql) continue ;; esac
+            echo "Applying $file"
+            psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$file"
+          done
+      - name: Build staging image
+        run: docker build --pull -t visual4d-staging:${{ github.sha }} .
+      - name: Start staging container
+        run: |
+          docker run -d --name visual4d-staging --network host \
+            -e DATABASE_URL="$STAGING_DATABASE_URL" \
+            -e VISUAL4D_LOCAL_AUTH_TOKEN="$STAGING_MCP_TOKEN" \
+            -e VISUAL4D_LOCAL_USER_ID="staging-ci-user" \
+            -e VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS="false" \
+            -e PORT="8787" \
+            visual4d-staging:${{ github.sha }}
+      - name: Wait for health
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/healthz; then exit 0; fi
+            sleep 1
+          done
+          docker logs visual4d-staging
+          exit 1
+      - name: Authenticated MCP staging smoke
+        run: node scripts/staging-mcp-smoke.mjs
+      - name: Assert development approval bridge is disabled
+        run: |
+          status=$(curl --silent --output /tmp/grant.json --write-out '%{http_code}' \
+            -X POST http://127.0.0.1:8787/local/approval-grants \
+            -H "Authorization: Bearer $STAGING_MCP_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"projectId":"none","kind":"ANALYSIS","artifactVersionId":"none"}')
+          test "$status" = "404"
+      - name: Container logs
+        if: always()
+        run: docker logs visual4d-staging || true

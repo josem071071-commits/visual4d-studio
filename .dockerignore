@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-integration
+.git
+.github
+certification
+*.log
+.env
+.env.*
+!.env.staging.example
+CORE_CERTIFICATION_REPORT.md
+core-test-output.txt

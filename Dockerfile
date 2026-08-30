@@ -1,0 +1,21 @@
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json tsconfig.core.json tsconfig.integration.json ./
+COPY packages ./packages
+COPY services ./services
+RUN npm run build:integration
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production \
+    VISUAL4D_MCP_HOST=0.0.0.0 \
+    VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS=false
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=build /app/dist-integration ./dist-integration
+USER node
+EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["sh","-c","export VISUAL4D_MCP_PORT=${PORT:-8787}; exec node dist-integration/services/mcp-server/src/local-server.js"]
