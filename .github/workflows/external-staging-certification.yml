@@ -1,37 +1,50 @@
-name: Visual 4D Sprint 4.2 External HTTPS Certification
+name: Visual 4D External HTTPS/MCP Certification
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  VISUAL4D_PRIMARY_BASE_URL: https://mcp.visual4dstudio.com
+  VISUAL4D_FALLBACK_BASE_URL: https://honest-success-production-6b40.up.railway.app
+
 jobs:
   public-health-and-auth-boundary:
     runs-on: ubuntu-latest
     steps:
-      - name: Public HTTPS health
+      - name: Primary custom-domain HTTPS health
         run: |
           set -euo pipefail
-          BODY="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 https://honest-success-production-6b40.up.railway.app/healthz)"
+          BODY="$(curl --fail --silent --show-error --retry 8 --retry-delay 2 "$VISUAL4D_PRIMARY_BASE_URL/healthz")"
           echo "$BODY" | grep '"ok":true'
           echo "$BODY" | grep '"service":"visual4d-mcp-local"'
 
-      - name: MCP rejects unauthenticated requests
+      - name: Primary MCP rejects unauthenticated requests
         run: |
           set -euo pipefail
           STATUS="$(curl --silent --output /tmp/mcp-body --write-out '%{http_code}' \
             -X POST \
             -H 'content-type: application/json' \
             --data '{}' \
-            https://honest-success-production-6b40.up.railway.app/mcp)"
+            "$VISUAL4D_PRIMARY_BASE_URL/mcp")"
           test "$STATUS" = "401"
+
+      - name: Railway fallback remains healthy
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 "$VISUAL4D_FALLBACK_BASE_URL/healthz")"
+          echo "$BODY" | grep '"ok":true'
 
   authenticated-remote-mcp:
     needs: public-health-and-auth-boundary
     runs-on: ubuntu-latest
     env:
       VISUAL4D_STAGING_AUTH_TOKEN: ${{ secrets.VISUAL4D_STAGING_AUTH_TOKEN }}
-      VISUAL4D_STAGING_URL: https://honest-success-production-6b40.up.railway.app/mcp
+      VISUAL4D_STAGING_URL: https://mcp.visual4dstudio.com/mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,8 +63,8 @@ jobs:
             -H "Authorization: Bearer $VISUAL4D_STAGING_AUTH_TOKEN" \
             -H 'content-type: application/json' \
             --data '{"projectId":"none","kind":"ANALYSIS","artifactVersionId":"none"}' \
-            https://honest-success-production-6b40.up.railway.app/local/approval-grants)"
+            "$VISUAL4D_PRIMARY_BASE_URL/local/approval-grants")"
           test "$STATUS" = "404"
       - run: npm ci
-      - name: Authenticated remote MCP discovery and render
+      - name: Authenticated remote MCP discovery and render through custom domain
         run: node tests/integration/mcp-remote-smoke.mjs
