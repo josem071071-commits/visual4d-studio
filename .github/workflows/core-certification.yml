@@ -73,7 +73,10 @@ jobs:
           npm run test:sprint3.2
           npm run test:sprint3.3
           npm run test:sprint3.4
+          npm run test:sprint3.5
           npm run test:migrations
+      - name: Authenticated MCP render-preview integration
+        run: npm run test:integration:mcp
       - name: Generate Sprint 3 visual references
         run: |
           npm run render:sprint3.1:sample
