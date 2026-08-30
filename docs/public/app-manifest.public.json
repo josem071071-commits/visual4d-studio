@@ -12,44 +12,16 @@
     "production_endpoint": null,
     "public_domain": "https://www.visual4dstudio.com"
   },
-  "tools": [
-    {
-      "name": "generation.render_preview",
-      "classification": "read",
-      "description": "Genera una vista previa determinista y devuelve contenido estructurado para la interfaz de Visual 4D."
-    }
-  ],
-  "resources": [
-    {
-      "uri": "ui://visual4d/render-preview.html",
-      "mime_type": "text/html+skybridge",
-      "description": "Vista previa integrada de Visual 4D Studio."
-    }
-  ],
+  "tools": [{"name":"generation.render_preview","classification":"read","description":"Genera una vista previa determinista y devuelve contenido estructurado para la interfaz de Visual 4D."}],
+  "resources": [{"uri":"ui://visual4d/render-preview.html","mime_type":"text/html+skybridge","description":"Vista previa integrada de Visual 4D Studio."}],
   "authentication": {
     "staging": "static-bearer-test-only",
     "production_target": "oauth2.1-oidc-authorization-code-pkce",
     "production_provider": {
-      "name": "Clerk",
-      "environment": "development",
-      "discovery_url": "https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration",
-      "client_type": "public-pkce",
-      "consent_screen": true,
-      "requested_scopes": [
-        "email",
-        "profile",
-        "offline_access",
-        "visual4d:read",
-        "visual4d:render"
-      ],
-      "custom_scopes_advertised": [
-        "visual4d:read",
-        "visual4d:render",
-        "visual4d:write",
-        "visual4d:approve",
-        "visual4d:identity"
-      ],
-      "redirect_uri_status": "pending-chatgpt-callback"
+      "name":"Clerk","environment":"development","discovery_url":"https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration","client_type":"public-pkce","consent_screen":true,
+      "requested_scopes":["email","profile","offline_access","visual4d:read","visual4d:render"],
+      "custom_scopes_advertised":["visual4d:read","visual4d:render","visual4d:write","visual4d:approve","visual4d:identity"],
+      "redirect_uri_status":"pending-chatgpt-callback"
     },
     "production_ready": false
   },
@@ -62,12 +34,11 @@
     "legal_name": "Jose Guerrero",
     "operator": "Jose Guerrero",
     "country": "United States",
-    "jurisdiction": "N/A",
+    "state": "Florida",
+    "governing_law": "State of Florida, United States",
+    "jurisdiction": "Miami-Dade County, Florida, United States",
     "support_email": "Josem071071@gmail.com"
   },
-  "branding": {
-    "icon_status": "proposal-not-approved",
-    "wordmark_status": "pending-approval"
-  },
+  "branding": {"icon_status":"proposal-not-approved","wordmark_status":"pending-approval"},
   "publication_ready": false
 }
