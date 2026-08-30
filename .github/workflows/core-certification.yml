@@ -77,6 +77,7 @@ jobs:
           npm run test:sprint2.1
           npm run test:sprint2.2
           npm run test:sprint2.3
+          npm run test:sprint3
           npm run test:migrations
 
       - name: PostgreSQL UP/DOWN/UP — zero skips
