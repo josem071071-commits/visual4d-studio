@@ -6,6 +6,7 @@
     "packages/state-machine/**/*.ts",
     "packages/provenance/**/*.ts",
     "packages/layout-engine/**/*.ts",
+    "packages/renderer/**/*.ts",
     "packages/repositories/**/*.ts",
     "packages/services/**/*.ts",
     "services/mcp-server/src/tool-registry.ts"

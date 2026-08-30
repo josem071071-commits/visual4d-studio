@@ -78,7 +78,11 @@ jobs:
           npm run test:sprint2.2
           npm run test:sprint2.3
           npm run test:sprint3
+          npm run test:sprint3.1
           npm run test:migrations
+
+      - name: Generate Sprint 3.1 reference SVG
+        run: npm run render:sprint3.1:sample
 
       - name: PostgreSQL UP/DOWN/UP — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
@@ -92,11 +96,13 @@ jobs:
           CERTIFICATION_STATUS: PASS
         run: node scripts/generate-certification-report.mjs
 
-      - name: Upload certification report
+      - name: Upload certification report and visual reference
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: visual4d-core-certification-${{ github.sha }}
-          path: certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md
+          path: |
+            certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md
+            certification/samples/sprint3_1_reference.svg
           if-no-files-found: error
           retention-days: 30
