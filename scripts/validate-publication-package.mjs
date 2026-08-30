@@ -10,6 +10,8 @@ const requiredFiles = [
   'docs/public/SUBMISSION_CHECKLIST.md',
   'docs/public/APP_REGISTRATION_PACKAGE.md',
   'docs/public/PUBLICATION_READINESS.md',
+  'docs/public/TOOL_REVIEW_MATRIX.md',
+  'docs/public/SUBMISSION_EVIDENCE_INDEX.md',
 ];
 
 function fail(message) {
@@ -44,6 +46,16 @@ if (manifest.authentication?.production_provider?.name !== 'Clerk') fail('config
 if (manifest.authentication?.production_provider?.environment !== 'development') fail('Clerk configuration must remain marked development until promoted');
 if (manifest.authentication?.production_provider?.redirect_uri_status !== 'pending-chatgpt-callback') fail('redirect URI status must remain explicit while unresolved');
 
+const scopePolicy = fs.readFileSync(path.join(root, 'services/mcp-server/src/tool-scope-policy.ts'), 'utf8');
+const reviewMatrix = fs.readFileSync(path.join(root, 'docs/public/TOOL_REVIEW_MATRIX.md'), 'utf8');
+for (const tool of ['generation.render_preview','method.analyze','method.structure','method.resolve_resources','method.art_direct','generation.create_design','verification.save','versions.mark_final','approvals.approve_stage','identity.activate_version']) {
+  if (!scopePolicy.includes(`"${tool}"`)) fail(`production scope policy missing tool: ${tool}`);
+  if (!reviewMatrix.includes(`\`${tool}\``)) fail(`tool review matrix missing tool: ${tool}`);
+}
+for (const scope of ['visual4d:render','visual4d:write','visual4d:approve','visual4d:identity']) {
+  if (!reviewMatrix.includes(`\`${scope}\``)) fail(`tool review matrix missing scope: ${scope}`);
+}
+
 const forbiddenProductionEndpoint = manifest.integration?.staging_endpoint;
 if (manifest.integration?.production_endpoint && manifest.integration.production_endpoint === forbiddenProductionEndpoint) {
   fail('staging endpoint must not be reused as production endpoint');
@@ -65,5 +77,6 @@ if (manifest.publication_ready === true) {
 
 if (!process.exitCode) {
   console.log('PUBLICATION_PACKAGE_VALID: pre-publication package is internally consistent.');
+  console.log('TOOL_REVIEW_MATRIX_VALID: documented review surface matches the required production tool set.');
   console.log(`publication_ready=${manifest.publication_ready === true}`);
 }
