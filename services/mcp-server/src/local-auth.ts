@@ -17,7 +17,12 @@ export function authenticateLocalBearer(header:string|undefined,config:LocalAuth
   if(!header?.startsWith("Bearer "))throw new LocalAuthError(401,"BEARER_TOKEN_REQUIRED");
   const supplied=header.slice(7);
   for(const item of config.tokenIdentities??[]){if(safeEqual(supplied,item.token))return actor(item.identity);}
-  if(config.token&&config.userId&&safeEqual(supplied,config.token))return actor({userId:config.userId,sessionId:config.sessionId,permissions:config.permissions});
+  if(config.token&&config.userId&&safeEqual(supplied,config.token)){
+    const identity:LocalAuthIdentity={userId:config.userId};
+    if(config.sessionId!==undefined)identity.sessionId=config.sessionId;
+    if(config.permissions!==undefined)identity.permissions=config.permissions;
+    return actor(identity);
+  }
   throw new LocalAuthError(403,"INVALID_BEARER_TOKEN");
 }
 export function actorFromRequest(req:IncomingMessage,config:LocalAuthConfig){const raw=req.headers.authorization;return authenticateLocalBearer(Array.isArray(raw)?raw[0]:raw,config);}
