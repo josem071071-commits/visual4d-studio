@@ -29,7 +29,7 @@
     "test:sprint3.5": "node --test tests/runtime/sprint3_5_render_mcp_contract.test.mjs",
     "test:sprint4.3": "node --test tests/runtime/sprint4_3_apps_sdk_contract.test.mjs",
     "test:sprint4.5": "node --test tests/integration/production-jwt.test.mjs",
-    "test:sprint4.6": "npm run build:integration && node --test dist-integration/tests/production-server.test.js",
+    "test:sprint4.6": "npm run build:integration && node --test dist-integration/tests/production-server.test.js dist-integration/tests/oidc-discovery.test.js",
     "render:sprint3.1:sample": "node scripts/render-sprint3-sample.mjs",
     "render:sprint3.2:sample": "node scripts/render-sprint3_2-sample.mjs",
     "render:sprint3.3:sample": "node scripts/render-sprint3_3-sample.mjs",
