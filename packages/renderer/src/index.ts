@@ -1,6 +1,8 @@
 import type { LayoutSpec, Rect } from "../../layout-engine/src/index.js";
 import { validateLayoutSpec } from "../../layout-engine/src/index.js";
 
+export type SafeRasterMediaType = "image/png" | "image/jpeg" | "image/webp";
+
 export interface FlyerRenderContent {
   eyebrow?: string;
   headline: string;
@@ -11,7 +13,8 @@ export interface FlyerRenderContent {
 
 export type RenderElement =
   | { kind: "rect"; id: string; box: Rect; role: "BACKGROUND" | "HERO_PLACEHOLDER" | "ACCENT" }
-  | { kind: "text"; id: string; box: Rect; role: "EYEBROW" | "HEADLINE" | "BODY" | "FOOTER" | "HERO_LABEL"; text: string; fontSize: number; maxLines: number; align: "left" | "center" | "right" };
+  | { kind: "text"; id: string; box: Rect; role: "EYEBROW" | "HEADLINE" | "BODY" | "FOOTER" | "HERO_LABEL"; text: string; fontSize: number; maxLines: number; align: "left" | "center" | "right" }
+  | { kind: "image"; id: string; box: Rect; role: "HERO_IMAGE"; mediaType: SafeRasterMediaType; dataUri: string; assetId: string; provenance: { sourceType: string; generatedByAI: boolean; documentary: boolean } };
 
 export interface RenderSpec {
   version: "visual4d.render.v1";
@@ -23,6 +26,8 @@ export interface RenderValidationResult {
   valid: boolean;
   errors: readonly string[];
 }
+
+const MAX_INLINE_IMAGE_BYTES = 8_000_000;
 
 function alignForBox(box: Rect, canvasWidth: number): "left" | "center" | "right" {
   const center = box.x + box.width / 2;
@@ -84,6 +89,15 @@ function insideCanvas(box: Rect, width: number, height: number): boolean {
   return box.x >= 0 && box.y >= 0 && box.width > 0 && box.height > 0 && box.x + box.width <= width && box.y + box.height <= height;
 }
 
+export function isSafeRasterDataUri(mediaType: SafeRasterMediaType, dataUri: string): boolean {
+  const prefix = `data:${mediaType};base64,`;
+  if (!dataUri.startsWith(prefix)) return false;
+  const payload = dataUri.slice(prefix.length);
+  if (!payload || payload.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) return false;
+  const approximateBytes = Math.floor((payload.length * 3) / 4);
+  return approximateBytes > 0 && approximateBytes <= MAX_INLINE_IMAGE_BYTES;
+}
+
 export function validateRenderSpec(spec: RenderSpec): RenderValidationResult {
   const errors: string[] = [];
   if (spec.canvas.width <= 0 || spec.canvas.height <= 0) errors.push("INVALID_CANVAS");
@@ -93,6 +107,7 @@ export function validateRenderSpec(spec: RenderSpec): RenderValidationResult {
     ids.add(element.id);
     if (!insideCanvas(element.box, spec.canvas.width, spec.canvas.height)) errors.push(`OUTSIDE_CANVAS:${element.id}`);
     if (element.kind === "text" && !element.text.trim()) errors.push(`EMPTY_TEXT:${element.id}`);
+    if (element.kind === "image" && !isSafeRasterDataUri(element.mediaType, element.dataUri)) errors.push(`UNSAFE_IMAGE_DATA:${element.id}`);
   }
   return { valid: errors.length === 0, errors };
 }
@@ -153,6 +168,10 @@ export function renderSvg(spec: RenderSpec): string {
   for (const element of spec.elements) {
     if (element.kind === "rect") {
       parts.push(`<rect id="${escapeXml(element.id)}" x="${element.box.x}" y="${element.box.y}" width="${element.box.width}" height="${element.box.height}" fill="${roleFill(element.role)}"/>`);
+      continue;
+    }
+    if (element.kind === "image") {
+      parts.push(`<image id="${escapeXml(element.id)}" x="${element.box.x}" y="${element.box.y}" width="${element.box.width}" height="${element.box.height}" href="${escapeXml(element.dataUri)}" preserveAspectRatio="xMidYMid slice" data-asset-id="${escapeXml(element.assetId)}" data-source-type="${escapeXml(element.provenance.sourceType)}"/>`);
       continue;
     }
     const lines = wrapText(element.text, element.box, element.fontSize, element.maxLines);
