@@ -8,6 +8,7 @@
     "packages/layout-engine/**/*.ts",
     "packages/renderer/**/*.ts",
     "packages/asset-binding/**/*.ts",
+    "packages/identity-style/**/*.ts",
     "packages/repositories/**/*.ts",
     "packages/services/**/*.ts",
     "services/mcp-server/src/tool-registry.ts"

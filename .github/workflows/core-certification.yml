@@ -23,8 +23,7 @@ jobs:
           POSTGRES_USER: visual4d
           POSTGRES_PASSWORD: visual4d_ci_only
           POSTGRES_DB: visual4d_cert
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd="pg_isready -U visual4d -d visual4d_cert"
           --health-interval=5s
@@ -43,33 +42,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-
       - name: Clean dependency install
         run: npm ci
-
       - name: Certification environment guard
         run: node scripts/ci-environment-check.mjs
-
       - name: Build core
         run: npm run build:core
-
       - name: Full typecheck
         run: npm run typecheck
-
       - name: Build integration targets
         run: npm run build:integration
-
       - name: Runtime and domain suites
         run: |
           npm run test:core
@@ -80,25 +71,22 @@ jobs:
           npm run test:sprint3
           npm run test:sprint3.1
           npm run test:sprint3.2
+          npm run test:sprint3.3
           npm run test:migrations
-
       - name: Generate Sprint 3 visual references
         run: |
           npm run render:sprint3.1:sample
           npm run render:sprint3.2:sample
-
+          npm run render:sprint3.3:sample
       - name: PostgreSQL UP/DOWN/UP — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
-
       - name: PostgreSQL + MCP core certification — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/core-certification.integration.test.mjs
-
       - name: Generate certification report
         if: success()
         env:
           CERTIFICATION_STATUS: PASS
         run: node scripts/generate-certification-report.mjs
-
       - name: Upload certification report and visual references
         if: success()
         uses: actions/upload-artifact@v4
@@ -108,5 +96,6 @@ jobs:
             certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md
             certification/samples/sprint3_1_reference.svg
             certification/samples/sprint3_2_asset_reference.svg
+            certification/samples/sprint3_3_brand_reference.svg
           if-no-files-found: error
           retention-days: 30

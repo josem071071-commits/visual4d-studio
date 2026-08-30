@@ -2,6 +2,7 @@ import type { LayoutSpec, Rect } from "../../layout-engine/src/index.js";
 import { validateLayoutSpec } from "../../layout-engine/src/index.js";
 
 export type SafeRasterMediaType = "image/png" | "image/jpeg" | "image/webp";
+export type SafeFontFamily = "Arial, Helvetica, sans-serif" | "Georgia, 'Times New Roman', serif" | "Courier New, Courier, monospace";
 
 export interface FlyerRenderContent {
   eyebrow?: string;
@@ -12,8 +13,8 @@ export interface FlyerRenderContent {
 }
 
 export type RenderElement =
-  | { kind: "rect"; id: string; box: Rect; role: "BACKGROUND" | "HERO_PLACEHOLDER" | "ACCENT" }
-  | { kind: "text"; id: string; box: Rect; role: "EYEBROW" | "HEADLINE" | "BODY" | "FOOTER" | "HERO_LABEL"; text: string; fontSize: number; maxLines: number; align: "left" | "center" | "right" }
+  | { kind: "rect"; id: string; box: Rect; role: "BACKGROUND" | "HERO_PLACEHOLDER" | "ACCENT"; fill?: string }
+  | { kind: "text"; id: string; box: Rect; role: "EYEBROW" | "HEADLINE" | "BODY" | "FOOTER" | "HERO_LABEL"; text: string; fontSize: number; maxLines: number; align: "left" | "center" | "right"; fill?: string; fontFamily?: SafeFontFamily }
   | { kind: "image"; id: string; box: Rect; role: "HERO_IMAGE"; mediaType: SafeRasterMediaType; dataUri: string; assetId: string; provenance: { sourceType: string; generatedByAI: boolean; documentary: boolean } };
 
 export interface RenderSpec {
@@ -28,6 +29,12 @@ export interface RenderValidationResult {
 }
 
 const MAX_INLINE_IMAGE_BYTES = 8_000_000;
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+const SAFE_FONTS = new Set<SafeFontFamily>([
+  "Arial, Helvetica, sans-serif",
+  "Georgia, 'Times New Roman', serif",
+  "Courier New, Courier, monospace"
+]);
 
 function alignForBox(box: Rect, canvasWidth: number): "left" | "center" | "right" {
   const center = box.x + box.width / 2;
@@ -106,7 +113,12 @@ export function validateRenderSpec(spec: RenderSpec): RenderValidationResult {
     if (ids.has(element.id)) errors.push(`DUPLICATE_ID:${element.id}`);
     ids.add(element.id);
     if (!insideCanvas(element.box, spec.canvas.width, spec.canvas.height)) errors.push(`OUTSIDE_CANVAS:${element.id}`);
-    if (element.kind === "text" && !element.text.trim()) errors.push(`EMPTY_TEXT:${element.id}`);
+    if (element.kind === "text") {
+      if (!element.text.trim()) errors.push(`EMPTY_TEXT:${element.id}`);
+      if (element.fill !== undefined && !HEX.test(element.fill)) errors.push(`INVALID_FILL:${element.id}`);
+      if (element.fontFamily !== undefined && !SAFE_FONTS.has(element.fontFamily)) errors.push(`UNSAFE_FONT:${element.id}`);
+    }
+    if (element.kind === "rect" && element.fill !== undefined && !HEX.test(element.fill)) errors.push(`INVALID_FILL:${element.id}`);
     if (element.kind === "image" && !isSafeRasterDataUri(element.mediaType, element.dataUri)) errors.push(`UNSAFE_IMAGE_DATA:${element.id}`);
   }
   return { valid: errors.length === 0, errors };
@@ -167,7 +179,7 @@ export function renderSvg(spec: RenderSpec): string {
   const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${spec.canvas.width}" height="${spec.canvas.height}" viewBox="0 0 ${spec.canvas.width} ${spec.canvas.height}" role="img">`];
   for (const element of spec.elements) {
     if (element.kind === "rect") {
-      parts.push(`<rect id="${escapeXml(element.id)}" x="${element.box.x}" y="${element.box.y}" width="${element.box.width}" height="${element.box.height}" fill="${roleFill(element.role)}"/>`);
+      parts.push(`<rect id="${escapeXml(element.id)}" x="${element.box.x}" y="${element.box.y}" width="${element.box.width}" height="${element.box.height}" fill="${element.fill ?? roleFill(element.role)}"/>`);
       continue;
     }
     if (element.kind === "image") {
@@ -178,7 +190,8 @@ export function renderSvg(spec: RenderSpec): string {
     const lineHeight = Math.round(element.fontSize * 1.18);
     const x = textX(element);
     const startY = element.role === "HERO_LABEL" ? element.box.y + element.box.height / 2 : element.box.y + element.fontSize;
-    parts.push(`<text id="${escapeXml(element.id)}" x="${x}" y="${startY}" font-family="Arial, Helvetica, sans-serif" font-size="${element.fontSize}" fill="${textFill(element.role)}" text-anchor="${textAnchor(element.align)}">`);
+    const family = element.fontFamily ?? "Arial, Helvetica, sans-serif";
+    parts.push(`<text id="${escapeXml(element.id)}" x="${x}" y="${startY}" font-family="${escapeXml(family)}" font-size="${element.fontSize}" fill="${element.fill ?? textFill(element.role)}" text-anchor="${textAnchor(element.align)}">`);
     lines.forEach((line, index) => {
       parts.push(`<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`);
     });

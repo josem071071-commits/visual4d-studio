@@ -3,18 +3,14 @@
   "version": "0.2.4-ci",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "services/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "services/*", "packages/*"],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:core": "node --test tests/runtime/core.test.mjs",
     "build:core": "tsc -p tsconfig.core.json",
     "clean": "rm -rf dist",
     "test:migrations": "node --test tests/runtime/migration-contract.test.mjs",
-    "test": "npm run build:core && npm run typecheck && npm run test:core && npm run test:sprint2 && npm run test:sprint2.1 && npm run test:sprint2.2 && npm run test:sprint2.3 && npm run test:sprint3 && npm run test:sprint3.1 && npm run test:sprint3.2 && npm run test:migrations",
+    "test": "npm run build:core && npm run typecheck && npm run test:core && npm run test:sprint2 && npm run test:sprint2.1 && npm run test:sprint2.2 && npm run test:sprint2.3 && npm run test:sprint3 && npm run test:sprint3.1 && npm run test:sprint3.2 && npm run test:sprint3.3 && npm run test:migrations",
     "test:postgres-migration": "node --test tests/integration/postgres-migration.test.mjs",
     "test:sprint2": "node --test tests/runtime/sprint2-workflow.test.mjs",
     "test:sprint2.1": "node --test tests/runtime/sprint2_1_contract.test.mjs",
@@ -27,10 +23,12 @@
     "test:sprint3": "node --test tests/runtime/sprint3_layout.test.mjs",
     "test:sprint3.1": "node --test tests/runtime/sprint3_1_renderer.test.mjs",
     "test:sprint3.2": "node --test tests/runtime/sprint3_2_asset_binding.test.mjs",
+    "test:sprint3.3": "node --test tests/runtime/sprint3_3_identity_style.test.mjs",
     "render:sprint3.1:sample": "node scripts/render-sprint3-sample.mjs",
     "render:sprint3.2:sample": "node scripts/render-sprint3_2-sample.mjs",
+    "render:sprint3.3:sample": "node scripts/render-sprint3_3-sample.mjs",
     "test:certification:postgres": "npm run build:integration && node --test tests/integration/core-certification.integration.test.mjs",
-    "test:certification": "npm run build:core && npm run typecheck && npm run test:core && npm run test:sprint2 && npm run test:sprint2.1 && npm run test:sprint2.2 && npm run test:sprint2.3 && npm run test:sprint3 && npm run test:sprint3.1 && npm run test:sprint3.2 && npm run test:migrations && npm run test:certification:postgres",
+    "test:certification": "npm run build:core && npm run typecheck && npm run test:core && npm run test:sprint2 && npm run test:sprint2.1 && npm run test:sprint2.2 && npm run test:sprint2.3 && npm run test:sprint3 && npm run test:sprint3.1 && npm run test:sprint3.2 && npm run test:sprint3.3 && npm run test:migrations && npm run test:certification:postgres",
     "test:ci:postgres-migration": "node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs",
     "test:ci:core-certification": "node scripts/run-test-no-skip.mjs tests/integration/core-certification.integration.test.mjs",
     "certify:report": "node scripts/generate-certification-report.mjs"
@@ -47,7 +45,5 @@
     "@modelcontextprotocol/client": "2.0.0"
   },
   "packageManager": "npm@10.9.2",
-  "engines": {
-    "node": ">=22.0.0"
-  }
+  "engines": {"node": ">=22.0.0"}
 }
