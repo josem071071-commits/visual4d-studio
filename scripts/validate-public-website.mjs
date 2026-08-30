@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Sprint 4.12 public-site certification gate.
 const root = process.cwd();
 const required = ['index.html','privacy.html','terms.html','support.html','security.html','styles.css','_redirects'];
 const fail = (m) => { console.error(`PUBLIC_WEBSITE_INVALID: ${m}`); process.exitCode = 1; };
