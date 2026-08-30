@@ -23,13 +23,14 @@ jobs:
         run: npm run typecheck
       - name: Build production integration target
         run: npm run build:integration
-      - name: Sprint 4.6 auth and OIDC tests
+      - name: Sprint 4.6 auth, OIDC and RFC9728 tests
         run: npm run test:sprint4.6
       - name: Production preflight accepts secure contract
         env:
           DATABASE_URL: postgresql://example:example@localhost:5432/example
           VISUAL4D_OIDC_ISSUER: https://issuer.example
           VISUAL4D_OIDC_AUDIENCE: visual4d-mcp
+          VISUAL4D_MCP_RESOURCE_URI: https://api.example.com/mcp
           VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS: 'false'
         run: node scripts/production-auth-preflight.mjs
       - name: Production preflight rejects staging static token
@@ -37,6 +38,7 @@ jobs:
           if DATABASE_URL=postgresql://example:example@localhost:5432/example \
              VISUAL4D_OIDC_ISSUER=https://issuer.example \
              VISUAL4D_OIDC_AUDIENCE=visual4d-mcp \
+             VISUAL4D_MCP_RESOURCE_URI=https://api.example.com/mcp \
              VISUAL4D_AUTH_TOKEN=must-not-be-accepted \
              node scripts/production-auth-preflight.mjs; then
             echo 'Expected static staging token rejection' >&2
@@ -47,6 +49,7 @@ jobs:
           if DATABASE_URL=postgresql://example:example@localhost:5432/example \
              VISUAL4D_OIDC_ISSUER=https://issuer.example \
              VISUAL4D_OIDC_AUDIENCE=visual4d-mcp \
+             VISUAL4D_MCP_RESOURCE_URI=https://api.example.com/mcp \
              VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS=true \
              node scripts/production-auth-preflight.mjs; then
             echo 'Expected development grant rejection' >&2
