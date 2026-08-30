@@ -1,46 +1,58 @@
-# Visual 4D Studio — Clerk OAuth production setup
+# Visual 4D Studio — Clerk OAuth setup
 
-Status: **external configuration pending**. This document contains no credentials.
+Status: **development provider configured; production promotion pending**. This document contains no secrets.
 
 ## Decision
 
-Clerk is the preferred first production authorization-server candidate for Visual 4D because its current OAuth/MCP implementation supports JWT access tokens, JWKS, PKCE S256, custom OAuth scopes, OAuth protected-resource metadata workflows, Client ID Metadata Documents (CIMD), and Dynamic Client Registration (DCR) fallback.
+Clerk is the preferred first production authorization-server candidate for Visual 4D because its OAuth/MCP implementation supports JWT access tokens, JWKS, PKCE S256, custom OAuth scopes and OAuth protected-resource metadata workflows.
 
 Visual 4D remains provider-neutral in code. Switching providers must not require changing tool authorization logic.
 
-## Visual 4D production scopes
+## Completed in Clerk Development
 
-Create and advertise only the scopes required by the application:
+Application: **Visual 4D Studio**  
+Environment: **Development**
 
+Custom scopes created and advertised:
 - `visual4d:read`
 - `visual4d:render`
 - `visual4d:write`
 - `visual4d:approve`
 - `visual4d:identity`
 
-Prefer least privilege. A client that only previews designs should receive `visual4d:render`, not write or approval scopes.
+OAuth client: **Visual 4D — ChatGPT**
+- Public client: enabled.
+- Authorization Code + PKCE: enabled by public-client mode.
+- Consent screen: enabled.
+- Selected scopes: `email`, `profile`, `offline_access`, `visual4d:read`, `visual4d:render`.
+- Write/approval/identity scopes deliberately excluded from the first ChatGPT-target client.
+- Redirect URI: pending exact callback supplied by a supported ChatGPT/OpenAI registration or submission surface.
 
-## Required Clerk properties
+Development discovery URL:
+`https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration`
 
-1. Use the current Clerk OAuth implementation, not a legacy OAuth application.
-2. Keep OAuth consent enabled.
-3. Use Authorization Code with PKCE S256 for public clients.
-4. Issue JWT access tokens so Visual 4D can validate them locally through JWKS.
-5. Configure the custom Visual 4D scopes above.
-6. Prefer CIMD when enabled for the account. Do not enable anonymous DCR unless a target MCP client actually requires it.
-7. Record the Clerk issuer/discovery URL only after the production instance exists.
+The OAuth Client Secret exists in Clerk but is not required for the intended public-PKCE integration. It must never be committed, pasted into chat, or used as a substitute for PKCE.
 
-## Visual 4D environment mapping
+## Least privilege rule
 
-After Clerk is configured, map its values into the production service:
+The first ChatGPT connection is read/render only. Do not add these scopes until separately reviewed and certified:
+- `visual4d:write`
+- `visual4d:approve`
+- `visual4d:identity`
+
+## Visual 4D production environment mapping
+
+After the production Clerk instance and production domain exist, map the production provider into the production service:
 
 ```text
-VISUAL4D_OIDC_ISSUER=<Clerk authorization-server issuer>
+VISUAL4D_OIDC_ISSUER=<production Clerk authorization-server issuer>
 VISUAL4D_OIDC_AUDIENCE=<aud value expected in Clerk OAuth access tokens>
 VISUAL4D_MCP_RESOURCE_URI=https://<production-host>/mcp
 ```
 
 Normally leave `VISUAL4D_OIDC_JWKS_URI` unset. Visual 4D discovers `jwks_uri` from the issuer and validates the issuer match before accepting it.
+
+Do not use the current `.accounts.dev` issuer as the final production identity endpoint.
 
 ## Required public MCP metadata
 
@@ -50,6 +62,22 @@ The production server publishes RFC 9728 Protected Resource Metadata at both the
 
 Production MUST NOT contain `VISUAL4D_AUTH_TOKEN`. That variable belongs only to staging. Production MUST keep `VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS=false`. The production container runs `scripts/production-auth-preflight.mjs` and exits before startup if these constraints are violated.
 
-## External owner action required later
+## Redirect URI rule
 
-The repository can be prepared and certified without a Clerk account. The first owner-only action is creating the Clerk production application/instance and enabling the required OAuth/MCP features. No secret should ever be pasted into chat, committed to GitHub, or stored in `.env.production.example`.
+Do not invent a ChatGPT callback URL. Clerk requires an exact URI match. Keep Redirect URIs empty in Development until OpenAI/ChatGPT exposes the exact callback through a supported app-registration or submission flow.
+
+Once supplied:
+1. add the exact URI to Clerk Development;
+2. run Authorization Code + PKCE end-to-end certification;
+3. test identity isolation and scopes;
+4. test disconnect/revocation;
+5. only then reproduce/promote the configuration in the production Clerk instance.
+
+## Remaining owner/external actions
+
+Repository preparation can continue autonomously. External ownership is required later for:
+- production domain;
+- production Clerk instance/promotion;
+- exact ChatGPT/OpenAI redirect URI;
+- final legal/support contact information;
+- final production app submission.
