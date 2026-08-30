@@ -9,6 +9,7 @@ import { PostgresApprovalGrantStore } from "./approval-grants.js";
 import { actorFromRequest, type LocalAuthConfig, LocalAuthError } from "./local-auth.js";
 import { createVisual4DToolRegistry } from "./tool-registry.js";
 import { createRenderPreviewTool } from "./render-tool.js";
+import { registerRenderPreviewResource } from "./apps-ui.js";
 
 export interface LocalMcpServerOptions {
   databaseUrl: string;
@@ -36,6 +37,7 @@ async function readJson(req:IncomingMessage,maxBytes=64*1024,timeoutMs=10_000):P
   return parsed as Record<string,unknown>;
 }
 function json(res:ServerResponse,status:number,body:unknown){const b=JSON.stringify(body);res.statusCode=status;res.setHeader("content-type","application/json; charset=utf-8");res.setHeader("content-length",Buffer.byteLength(b));res.end(b);}
+function record(value:unknown):Record<string,unknown>|undefined{return value!==null&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:undefined;}
 
 class MinuteRateLimiter{
   private buckets=new Map<string,{minute:number,count:number}>();
@@ -46,11 +48,16 @@ class MinuteRateLimiter{
 export function buildMcpServer(workflow:ProjectWorkflowService, grants:PostgresApprovalGrantStore):McpServer {
   const actorProvider=()=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");return actor;};
   const defs=[...createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action)),createRenderPreviewTool()];
-  const server=new McpServer({name:"visual4d-local",version:"0.3.5"},{capabilities:{tools:{}}});
+  const server=new McpServer({name:"visual4d-local",version:"0.3.5"},{capabilities:{tools:{},resources:{}}});
+  registerRenderPreviewResource(server);
   for(const def of defs){
-    const toolConfig={description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations})};
+    const toolConfig={...(def.title===undefined?{}:{title:def.title}),description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations}),...(def._meta===undefined?{}:{_meta:def._meta})};
     server.registerTool(def.name,toolConfig,async(args)=>{
-      try{const out=await def.execute(args as Record<string,unknown>);return{content:[{type:"text" as const,text:JSON.stringify(out)}]};}
+      try{
+        const out=await def.execute(args as Record<string,unknown>);
+        const structuredContent=record(out);
+        return{content:[{type:"text" as const,text:JSON.stringify(out)}],...(structuredContent===undefined?{}:{structuredContent}),...(def._meta===undefined?{}:{_meta:def._meta})};
+      }
       catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}
     });
   }
