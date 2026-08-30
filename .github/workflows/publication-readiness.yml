@@ -1,0 +1,44 @@
+name: Visual 4D Publication Readiness
+
+on:
+  push:
+    branches: [principal, main]
+    paths:
+      - 'docs/public/**'
+      - 'docs/security/**'
+      - 'scripts/validate-publication-package.mjs'
+      - 'package.json'
+      - '.github/workflows/publication-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate public manifest and submission package
+        run: npm run validate:publication
+      - name: Confirm staging is not mislabeled production
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const m = JSON.parse(fs.readFileSync('docs/public/app-manifest.public.json','utf8'));
+          if (m.integration.production_endpoint && m.integration.production_endpoint === m.integration.staging_endpoint) {
+            throw new Error('Staging endpoint cannot be the production endpoint');
+          }
+          if (m.publication_ready) {
+            throw new Error('publication_ready must remain false until all external gates are complete');
+          }
+          console.log('Pre-publication state is correctly fail-closed.');
+          NODE
