@@ -1,0 +1,56 @@
+name: Visual 4D Sprint 4.7 Production Auth Readiness
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-auth-readiness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build production integration target
+        run: npm run build:integration
+      - name: Sprint 4.6 auth and OIDC tests
+        run: npm run test:sprint4.6
+      - name: Production preflight accepts secure contract
+        env:
+          DATABASE_URL: postgresql://example:example@localhost:5432/example
+          VISUAL4D_OIDC_ISSUER: https://issuer.example
+          VISUAL4D_OIDC_AUDIENCE: visual4d-mcp
+          VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS: 'false'
+        run: node scripts/production-auth-preflight.mjs
+      - name: Production preflight rejects staging static token
+        run: |
+          if DATABASE_URL=postgresql://example:example@localhost:5432/example \
+             VISUAL4D_OIDC_ISSUER=https://issuer.example \
+             VISUAL4D_OIDC_AUDIENCE=visual4d-mcp \
+             VISUAL4D_AUTH_TOKEN=must-not-be-accepted \
+             node scripts/production-auth-preflight.mjs; then
+            echo 'Expected static staging token rejection' >&2
+            exit 1
+          fi
+      - name: Production preflight rejects development grants
+        run: |
+          if DATABASE_URL=postgresql://example:example@localhost:5432/example \
+             VISUAL4D_OIDC_ISSUER=https://issuer.example \
+             VISUAL4D_OIDC_AUDIENCE=visual4d-mcp \
+             VISUAL4D_ALLOW_DEV_APPROVAL_GRANTS=true \
+             node scripts/production-auth-preflight.mjs; then
+            echo 'Expected development grant rejection' >&2
+            exit 1
+          fi
+      - name: Build isolated production OAuth image
+        run: docker build -f Dockerfile.production -t visual4d-production-auth:${{ github.sha }} .
