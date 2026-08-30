@@ -1,6 +1,6 @@
 {
   "name": "visual4d-prototype",
-  "version": "0.3.0-layout",
+  "version": "0.2.4-ci",
   "private": true,
   "type": "module",
   "workspaces": [
