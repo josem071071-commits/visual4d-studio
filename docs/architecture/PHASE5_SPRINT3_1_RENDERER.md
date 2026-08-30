@@ -33,6 +33,10 @@ Sprint 3.1 is closed only when CI proves:
 5. the reference SVG is generated successfully;
 6. PostgreSQL/MCP certification remains green.
 
+## Certification status
+
+Implementation complete; external CI certification pending for this commit line.
+
 ## Next increment
 
 Sprint 3.2: controlled asset binding and provenance-aware image placement, without weakening MASTER/documentary asset rules.
