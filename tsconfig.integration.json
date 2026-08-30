@@ -14,6 +14,7 @@
     "packages/services/src/**/*.ts",
     "packages/state-machine/src/**/*.ts",
     "services/mcp-server/src/**/*.ts",
-    "tests/production-server.test.ts"
+    "tests/production-server.test.ts",
+    "tests/oidc-discovery.test.ts"
   ]
 }
