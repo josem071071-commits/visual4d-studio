@@ -51,7 +51,7 @@ export function buildMcpServer(workflow:ProjectWorkflowService, grants:PostgresA
     const toolConfig={description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations})};
     server.registerTool(def.name,toolConfig,async(args)=>{
       try{const out=await def.execute(args as Record<string,unknown>);return{content:[{type:"text" as const,text:JSON.stringify(out)}]};}
-      catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};
+      catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}
     });
   }
   return server;
