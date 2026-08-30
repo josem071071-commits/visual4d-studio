@@ -3,9 +3,11 @@ import type { MutationContext, ProjectWorkflowService } from "../../../packages/
 
 export interface ToolDefinition {
   name: string;
+  title?: string;
   description: string;
   inputSchema: Record<string, unknown>;
   annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
+  _meta?: Record<string, unknown>;
   execute(input: Record<string, unknown>): Promise<unknown>;
 }
 export type ActorProvider = () => Promise<ActorContext> | ActorContext;
