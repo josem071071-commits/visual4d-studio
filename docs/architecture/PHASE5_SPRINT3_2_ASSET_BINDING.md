@@ -42,6 +42,10 @@ Sprint 3.2 closes only when CI confirms:
 6. a raster-bound SVG reference artifact is generated;
 7. PostgreSQL/MCP certification remains green.
 
+## Certification status
+
+Implementation complete; external CI certification pending for this commit line.
+
 ## Next increment
 
 Sprint 3.3: identity/style tokens and deterministic brand-safe composition, followed by an application-facing render service contract.
