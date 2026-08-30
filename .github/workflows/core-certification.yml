@@ -72,12 +72,14 @@ jobs:
           npm run test:sprint3.1
           npm run test:sprint3.2
           npm run test:sprint3.3
+          npm run test:sprint3.4
           npm run test:migrations
       - name: Generate Sprint 3 visual references
         run: |
           npm run render:sprint3.1:sample
           npm run render:sprint3.2:sample
           npm run render:sprint3.3:sample
+          npm run render:sprint3.4:sample
       - name: PostgreSQL UP/DOWN/UP — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
       - name: PostgreSQL + MCP core certification — zero skips
@@ -97,5 +99,7 @@ jobs:
             certification/samples/sprint3_1_reference.svg
             certification/samples/sprint3_2_asset_reference.svg
             certification/samples/sprint3_3_brand_reference.svg
+            certification/samples/sprint3_4_service_reference.svg
+            certification/samples/sprint3_4_service_reference.json
           if-no-files-found: error
           retention-days: 30
