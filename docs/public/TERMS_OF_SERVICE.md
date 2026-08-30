@@ -2,7 +2,7 @@
 
 **Versión:** 1.0 — borrador de publicación  
 **Fecha:** 29 de agosto de 2026  
-**Titular:** José Guerrero / Visual 4D Studio
+**Titular:** Jose Guerrero / Visual 4D Studio
 
 ## 1. Aceptación
 Al utilizar Visual 4D Studio, el usuario acepta estos términos y las políticas aplicables. Si no está de acuerdo, no debe utilizar el servicio.
@@ -46,11 +46,13 @@ En la máxima medida permitida por la legislación aplicable, Visual 4D Studio n
 El acceso puede suspenderse cuando sea necesario para proteger usuarios, infraestructura, derechos de terceros o cumplimiento normativo, o cuando exista una violación material de estos términos.
 
 ## 14. Legislación y resolución de controversias
-La jurisdicción, legislación aplicable y mecanismo de resolución de controversias deberán definirse expresamente antes de la distribución pública general.
+El operador ha indicado Estados Unidos como país y no ha designado todavía una jurisdicción estatal o foro contractual específico. Este apartado debe revisarse y completarse antes de una distribución pública general que requiera una cláusula de ley aplicable o foro.
 
 ## 15. Contacto
-**Titular:** José Guerrero / Visual 4D Studio  
-**Correo de soporte/legal:** PENDIENTE DE DEFINIR ANTES DE PUBLICACIÓN  
-**Domicilio o jurisdicción contractual:** PENDIENTE DE DEFINIR ANTES DE PUBLICACIÓN
+**Titular y operador:** Jose Guerrero / Visual 4D Studio  
+**País:** Estados Unidos  
+**Correo de soporte/legal:** Josem071071@gmail.com  
+**Sitio oficial previsto:** https://www.visual4dstudio.com  
+**Jurisdicción específica:** N/A / no designada todavía
 
-> Estado: documento preparado para revisión jurídica. Los campos marcados como PENDIENTE deben resolverse antes de la publicación pública.
+> Estado: titularidad, país y contacto completados. La cláusula jurídica de jurisdicción específica continúa pendiente de revisión antes de publicación general.
