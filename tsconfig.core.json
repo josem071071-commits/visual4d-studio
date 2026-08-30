@@ -9,6 +9,7 @@
     "packages/renderer/**/*.ts",
     "packages/asset-binding/**/*.ts",
     "packages/identity-style/**/*.ts",
+    "packages/render-service/**/*.ts",
     "packages/repositories/**/*.ts",
     "packages/services/**/*.ts",
     "services/mcp-server/src/tool-registry.ts"
