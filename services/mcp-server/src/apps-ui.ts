@@ -1,3 +1,5 @@
+import type { McpServer } from "@modelcontextprotocol/server";
+
 export const RENDER_PREVIEW_RESOURCE_URI = "ui://visual4d/render-preview.html";
 export const RENDER_PREVIEW_MIME_TYPE = "text/html+skybridge";
 
@@ -42,9 +44,7 @@ const RENDER_PREVIEW_HTML = String.raw`<!doctype html>
 </body>
 </html>`;
 
-export function registerRenderPreviewResource(server: {
-  registerResource(name:string,uri:string,config:Record<string,unknown>,callback:(uri:URL)=>Promise<{contents:Array<Record<string,unknown>>}>): unknown;
-}): void {
+export function registerRenderPreviewResource(server: McpServer): void {
   server.registerResource(
     "visual4d-render-preview",
     RENDER_PREVIEW_RESOURCE_URI,
