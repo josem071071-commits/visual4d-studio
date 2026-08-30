@@ -47,7 +47,8 @@ export function buildMcpServer(workflow:ProjectWorkflowService, grants:PostgresA
   const defs=createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action));
   const server=new McpServer({name:"visual4d-local",version:"0.2.3"},{capabilities:{tools:{}}});
   for(const def of defs){
-    server.registerTool(def.name,{description:def.description,inputSchema:fromJsonSchema(def.inputSchema),annotations:def.annotations},async(args)=>{
+    const toolConfig={description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations})};
+    server.registerTool(def.name,toolConfig,async(args)=>{
       try{const out=await def.execute(args as Record<string,unknown>);return{content:[{type:"text" as const,text:JSON.stringify(out)}]};}
       catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}
     });
@@ -85,7 +86,17 @@ export function createLocalMcpHttpServer(options:LocalMcpServerOptions){
     }
 
     if(req.url!=="/mcp")return json(res,404,{error:"NOT_FOUND"});
-    return actorStorage.run(actor,()=>mcpHandler(req,res));
+    const request={
+      method:req.method??"GET",
+      url:req.url,
+      headers:req.headers,
+      socket:req.socket,
+      on:req.on.bind(req),
+      once:req.once.bind(req),
+      pipe:req.pipe.bind(req),
+      [Symbol.asyncIterator]:req[Symbol.asyncIterator].bind(req)
+    };
+    return actorStorage.run(actor,()=>mcpHandler(request,res));
   });
 
   return{server,repo,host,port,
