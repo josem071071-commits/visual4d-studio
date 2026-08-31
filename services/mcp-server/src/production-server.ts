@@ -18,7 +18,7 @@ import { protectedResourceMetadataUrl, visual4DBearerChallenge, visual4DProtecte
 
 export interface ProductionMcpServerOptions { databaseUrl:string; verifier:ProductionTokenVerifier; issuer:string; resourceUri:string; host?:string; port?:number; rateLimitPerMinute?:number; }
 const actorStorage=new AsyncLocalStorage<ActorContext>();
-function cors(res:ServerResponse){res.setHeader("access-control-allow-origin","*");res.setHeader("access-control-allow-methods","GET, POST, OPTIONS");res.setHeader("access-control-allow-headers","Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id");res.setHeader("access-control-expose-headers","WWW-Authenticate, MCP-Session-Id");res.setHeader("vary","Origin");}
+function cors(res:ServerResponse){res.setHeader("access-control-allow-origin","*");res.setHeader("access-control-allow-methods","GET, POST, OPTIONS");res.setHeader("access-control-allow-headers","Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id, Mcp-Method, Mcp-Name");res.setHeader("access-control-expose-headers","WWW-Authenticate, MCP-Session-Id, MCP-Protocol-Version, Mcp-Method, Mcp-Name");res.setHeader("vary","Origin");}
 function json(res:ServerResponse,status:number,body:unknown){cors(res);const data=JSON.stringify(body);res.statusCode=status;res.setHeader("content-type","application/json; charset=utf-8");res.setHeader("cache-control","no-store");res.setHeader("content-length",Buffer.byteLength(data));res.end(data);}
 function record(value:unknown):Record<string,unknown>|undefined{return value!==null&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:undefined;}
 class MinuteRateLimiter{private buckets=new Map<string,{minute:number,count:number}>();constructor(private readonly limit:number){}allow(key:string){const minute=Math.floor(Date.now()/60000),bucket=this.buckets.get(key);if(!bucket||bucket.minute!==minute){this.buckets.set(key,{minute,count:1});return true;}if(bucket.count>=this.limit)return false;bucket.count++;return true;}}
@@ -26,7 +26,7 @@ class MinuteRateLimiter{private buckets=new Map<string,{minute:number,count:numb
 export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:PostgresApprovalGrantStore):McpServer{
  const actorProvider=()=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");return actor;};
  const defs=[...createVisual4DToolRegistry(workflow,actorProvider,(input,action)=>grants.withClaim(input.token,{userId:input.actor.userId,projectId:input.projectId,kind:input.kind,artifactVersionId:input.artifactVersionId},action)),createRenderPreviewTool()];
- const server=new McpServer({name:"visual4d-production",version:"0.4.12"},{capabilities:{tools:{},resources:{}}});registerRenderPreviewResource(server);
+ const server=new McpServer({name:"visual4d-production",version:"0.4.13",description:"Visual 4D Studio production MCP server for structured visual-design workflows."},{capabilities:{tools:{},resources:{}}});registerRenderPreviewResource(server);
  for(const def of defs){server.registerTool(def.name,{...(def.title===undefined?{}:{title:def.title}),description:def.description,inputSchema:fromJsonSchema(def.inputSchema),...(def.annotations===undefined?{}:{annotations:def.annotations}),...(def._meta===undefined?{}:{_meta:def._meta})},async(args)=>{const actor=actorStorage.getStore();if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");const granted=new Set(actor.permissions??[]);for(const scope of requiredScopesForTool(def.name)){if(!granted.has(scope))return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:"INSUFFICIENT_SCOPE",required:[scope]})}]};}try{const out=await def.execute(args as Record<string,unknown>);const structuredContent=record(out);return{content:[{type:"text" as const,text:JSON.stringify(out)}],...(structuredContent===undefined?{}:{structuredContent}),...(def._meta===undefined?{}:{_meta:def._meta})};}catch(error){const message=error instanceof Error?error.message:String(error);return{isError:true,content:[{type:"text" as const,text:JSON.stringify({error:message})}]};}});}
  return server;
 }
@@ -38,7 +38,7 @@ export function createProductionMcpHttpServer(options:ProductionMcpServerOptions
   const requestUrl=new URL(rawUrl,`http://${req.headers.host??"localhost"}`);
   const isMetadataPath=requestUrl.pathname==="/.well-known/oauth-protected-resource"||requestUrl.pathname===scopedMetadataPath||requestUrl.pathname==="/.well-known/oauth-authorization-server";
   if(req.method==="OPTIONS"&&(isMetadataPath||requestUrl.pathname==="/mcp")){cors(res);res.statusCode=204;res.setHeader("access-control-max-age","86400");return res.end();}
-  if(requestUrl.pathname==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.12"});
+  if(requestUrl.pathname==="/healthz")return json(res,200,{ok:true,service:"visual4d-mcp-production",version:"0.4.13"});
   if(requestUrl.pathname==="/.well-known/oauth-protected-resource"||requestUrl.pathname===scopedMetadataPath)return json(res,200,metadata);
   if(requestUrl.pathname==="/.well-known/oauth-authorization-server")return json(res,200,broker.authorizationServerMetadata());
   if(await broker.handle(req,res,requestUrl))return;
