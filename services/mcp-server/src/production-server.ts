@@ -56,6 +56,17 @@ function optionalId(value:unknown):string|undefined{
   return typeof value==="string"&&value.length>0&&value.length<=256?value:undefined;
 }
 
+function operationalContext(input:Record<string,unknown>):{requestId?:string;projectId?:string;institutionId?:string}{
+  const context:{requestId?:string;projectId?:string;institutionId?:string}={};
+  const requestId=optionalId(input.requestId);
+  const projectId=optionalId(input.projectId);
+  const institutionId=optionalId(input.institutionId);
+  if(requestId!==undefined)context.requestId=requestId;
+  if(projectId!==undefined)context.projectId=projectId;
+  if(institutionId!==undefined)context.institutionId=institutionId;
+  return context;
+}
+
 function safeErrorCode(error:unknown):string{
   const candidate=record(error)?.code;
   if(typeof candidate==="string"&&/^[A-Z0-9_:-]{1,128}$/.test(candidate))return candidate;
@@ -128,11 +139,7 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
         const actor=actorStorage.getStore();
         if(!actor)throw new Error("AUTHENTICATED_ACTOR_CONTEXT_REQUIRED");
         const input=record(args)??{};
-        const context={
-          requestId:optionalId(input.requestId),
-          projectId:optionalId(input.projectId),
-          institutionId:optionalId(input.institutionId)
-        };
+        const context=operationalContext(input);
         const started=Date.now();
         const granted=new Set(actor.permissions??[]);
         for(const scope of requiredScopesForTool(def.name)){
