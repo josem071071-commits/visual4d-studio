@@ -14,6 +14,20 @@ const requiredFiles = [
   'docs/public/SUBMISSION_EVIDENCE_INDEX.md',
 ];
 
+const requiredTools = [
+  'projects.create',
+  'generation.render_preview',
+  'method.analyze',
+  'method.structure',
+  'method.resolve_resources',
+  'method.art_direct',
+  'generation.create_design',
+  'verification.save',
+  'versions.mark_final',
+  'approvals.approve_stage',
+  'identity.activate_version'
+];
+
 function fail(message) {
   console.error(`PUBLICATION_PACKAGE_INVALID: ${message}`);
   process.exitCode = 1;
@@ -37,18 +51,24 @@ if (manifest.schema_version !== 'visual4d.public-app-metadata.v1') fail('unexpec
 if (manifest.name !== 'Visual 4D Studio') fail('official app name changed unexpectedly');
 if (manifest.short_name !== 'Visual 4D') fail('short name changed unexpectedly');
 if (!manifest.description || manifest.description.length < 80) fail('description is too short');
+if (!['pre-publication','production-candidate'].includes(manifest.status)) fail('unsupported publication status');
 if (manifest.integration?.protocol !== 'MCP') fail('integration protocol must be MCP');
 if (manifest.integration?.apps_sdk_ui !== true) fail('Apps SDK UI must remain enabled');
-if (!Array.isArray(manifest.tools) || !manifest.tools.some((tool) => tool.name === 'generation.render_preview')) fail('generation.render_preview must be declared');
+if (!Array.isArray(manifest.tools)) fail('tools must be an array');
+for (const toolName of requiredTools) {
+  if (!manifest.tools?.some((tool) => tool.name === toolName)) fail(`manifest missing tool: ${toolName}`);
+}
 if (manifest.authentication?.staging !== 'static-bearer-test-only') fail('staging authentication boundary changed');
 if (manifest.authentication?.production_target !== 'oauth2.1-oidc-authorization-code-pkce') fail('production auth target must remain OAuth/OIDC + PKCE');
 if (manifest.authentication?.production_provider?.name !== 'Clerk') fail('configured production provider candidate must be Clerk');
-if (manifest.authentication?.production_provider?.environment !== 'development') fail('Clerk configuration must remain marked development until promoted');
-if (manifest.authentication?.production_provider?.redirect_uri_status !== 'pending-chatgpt-callback') fail('redirect URI status must remain explicit while unresolved');
+if (manifest.authentication?.production_provider?.environment !== 'development') fail('Clerk configuration must remain marked development until provider environment is formally promoted');
+if (!['pending-chatgpt-callback','chatgpt-operational'].includes(manifest.authentication?.production_provider?.redirect_uri_status)) {
+  fail('redirect URI status must be an explicit recognized state');
+}
 
 const scopePolicy = fs.readFileSync(path.join(root, 'services/mcp-server/src/tool-scope-policy.ts'), 'utf8');
 const reviewMatrix = fs.readFileSync(path.join(root, 'docs/public/TOOL_REVIEW_MATRIX.md'), 'utf8');
-for (const tool of ['generation.render_preview','method.analyze','method.structure','method.resolve_resources','method.art_direct','generation.create_design','verification.save','versions.mark_final','approvals.approve_stage','identity.activate_version']) {
+for (const tool of requiredTools) {
   if (!scopePolicy.includes(`"${tool}"`)) fail(`production scope policy missing tool: ${tool}`);
   if (!reviewMatrix.includes(`\`${tool}\``)) fail(`tool review matrix missing tool: ${tool}`);
 }
@@ -61,25 +81,32 @@ if (manifest.integration?.production_endpoint && manifest.integration.production
   fail('staging endpoint must not be reused as production endpoint');
 }
 
-if (manifest.publication_ready === true) {
-  const requiredUrls = ['privacy_url', 'terms_url', 'support_url', 'security_url'];
+const requiredUrls = ['privacy_url', 'terms_url', 'support_url', 'security_url'];
+function validateProductionSurface() {
   for (const key of requiredUrls) {
     const value = manifest.legal?.[key];
-    if (typeof value !== 'string' || !value.startsWith('https://')) fail(`${key} must be a stable HTTPS URL before publication_ready=true`);
+    if (typeof value !== 'string' || !value.startsWith('https://')) fail(`${key} must be a stable HTTPS URL`);
   }
-  if (!manifest.integration?.production_endpoint?.startsWith('https://')) fail('production_endpoint must be HTTPS before publication_ready=true');
-  if (manifest.authentication?.production_ready !== true) fail('production authentication must be ready before publication_ready=true');
-  if (!manifest.legal?.operator) fail('legal operator must be set before publication_ready=true');
+  if (!manifest.integration?.production_endpoint?.startsWith('https://')) fail('production_endpoint must be HTTPS');
+  if (manifest.authentication?.production_ready !== true) fail('production authentication must be ready');
+  if (manifest.authentication?.production_provider?.redirect_uri_status !== 'chatgpt-operational') fail('ChatGPT redirect must be operational');
+  if (!manifest.legal?.operator) fail('legal operator must be set');
   const jurisdiction = String(manifest.legal?.jurisdiction ?? '').trim();
   if (!jurisdiction || /^(n\/?a|none|pending|tbd|not[- ]?designated)$/i.test(jurisdiction)) {
-    fail('a specific, non-placeholder jurisdiction must be set before publication_ready=true');
+    fail('a specific, non-placeholder jurisdiction must be set');
   }
+}
+
+if (manifest.status === 'production-candidate') validateProductionSurface();
+
+if (manifest.publication_ready === true) {
+  validateProductionSurface();
   if (manifest.branding?.icon_status !== 'approved') fail('icon must be approved before publication_ready=true');
   if (manifest.branding?.wordmark_status !== 'approved') fail('wordmark must be approved before publication_ready=true');
 }
 
 if (!process.exitCode) {
-  console.log('PUBLICATION_PACKAGE_VALID: pre-publication package is internally consistent.');
-  console.log('TOOL_REVIEW_MATRIX_VALID: documented review surface matches the required production tool set.');
+  console.log(`PUBLICATION_PACKAGE_VALID: status=${manifest.status}`);
+  console.log(`TOOL_REVIEW_MATRIX_VALID: tools=${requiredTools.length}`);
   console.log(`publication_ready=${manifest.publication_ready === true}`);
 }
