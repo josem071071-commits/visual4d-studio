@@ -25,9 +25,6 @@ interface PendingTokenExchange extends PendingAuthorization {
 
 type JsonObject = Record<string, unknown>;
 
-const UPSTREAM_IDENTITY_SCOPES = ["openid", "profile", "email"] as const;
-const UPSTREAM_IDENTITY_SCOPE_STRING = UPSTREAM_IDENTITY_SCOPES.join(" ");
-
 function base64url(value: Buffer) {
   return value
     .toString("base64")
@@ -121,7 +118,7 @@ export class OAuthBroker {
     this.callbackUrl = `${this.publicOrigin}/oauth/callback`;
     this.resourceUri = `${this.publicOrigin}/mcp`;
     this.visualScopes = new Set(options.scopes);
-    this.scopes = [...new Set([...UPSTREAM_IDENTITY_SCOPES, ...options.scopes])];
+    this.scopes = [...new Set(options.scopes)];
     this.ttlMs = options.transactionTtlMs ?? 10 * 60 * 1000;
   }
 
@@ -192,9 +189,9 @@ export class OAuthBroker {
       ...body,
       redirect_uris: [...new Set([...redirectUris, this.callbackUrl])],
       token_endpoint_auth_method: "none",
-      scope: UPSTREAM_IDENTITY_SCOPE_STRING,
     };
     delete upstreamPayload.resource;
+    delete upstreamPayload.scope;
 
     trace("register_request", {
       redirectUriCount: redirectUris.length,
@@ -202,7 +199,7 @@ export class OAuthBroker {
       callback: safeUrl(this.callbackUrl),
       tokenEndpointAuthMethod: "none",
       downstreamScopePresent: Boolean(downstreamScope),
-      upstreamScope: UPSTREAM_IDENTITY_SCOPE_STRING,
+      upstreamScope: null,
       upstreamResourceForwarded: false,
     });
 
@@ -286,7 +283,7 @@ export class OAuthBroker {
     for (const [key, value] of params) {
       if (key !== "scope" && key !== "resource") upstream.searchParams.append(key, value);
     }
-    upstream.searchParams.set("scope", UPSTREAM_IDENTITY_SCOPE_STRING);
+    upstream.searchParams.delete("scope");
     upstream.searchParams.set("redirect_uri", this.callbackUrl);
     upstream.searchParams.set("state", upstreamState);
     upstream.searchParams.set("code_challenge", upstreamChallenge);
@@ -296,7 +293,7 @@ export class OAuthBroker {
       destination: safeUrl(upstream.toString()),
       callback: safeUrl(this.callbackUrl),
       downstreamScopesPreserved: Boolean(downstreamScopes),
-      upstreamScope: UPSTREAM_IDENTITY_SCOPE_STRING,
+      upstreamScope: null,
       upstreamResourceForwarded: false,
     });
 
