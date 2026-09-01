@@ -1,12 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { authenticateProductionBearer, ProductionAuthError, type ProductionTokenVerifier, type VerifiedAccessToken } from "../services/mcp-server/src/production-auth.js";
+import { resolveOAuthScopes } from "../services/mcp-server/src/oauth-broker.js";
 import { requiredScopesForTool } from "../services/mcp-server/src/tool-scope-policy.js";
 import { canonicalMcpResourceUri, protectedResourceMetadataUrl, visual4DBearerChallenge, visual4DProtectedResourceMetadata } from "../services/mcp-server/src/protected-resource-metadata.js";
 
 const now=()=>Math.floor(Date.now()/1000);
 function verified(subject:string,scopes:VerifiedAccessToken["scopes"]):VerifiedAccessToken{return{subject,issuer:"https://issuer.example",audience:["visual4d-mcp"],expiresAt:now()+300,scopes};}
 function verifier(value:VerifiedAccessToken):ProductionTokenVerifier{return{async verify(){return value;}};}
+
+const visualScopes=["visual4d:read","visual4d:render","visual4d:write","visual4d:approve","visual4d:identity"] as const;
 
 test("production identity is always derived from token sub",async()=>{const a=await authenticateProductionBearer("Bearer a",verifier(verified("user-a",["visual4d:render"])));const b=await authenticateProductionBearer("Bearer b",verifier(verified("user-b",["visual4d:render"])));assert.equal(a.userId,"user-a");assert.equal(b.userId,"user-b");assert.notEqual(a.userId,b.userId);});
 test("render preview requires only render scope",()=>assert.deepEqual(requiredScopesForTool("generation.render_preview"),["visual4d:render"]));
@@ -19,3 +22,25 @@ test("canonical resource requires https MCP path",()=>{assert.equal(canonicalMcp
 test("RFC9728 metadata binds resource to authorization server",()=>{const metadata=visual4DProtectedResourceMetadata("https://api.example.com/mcp","https://issuer.example");assert.equal(metadata.resource,"https://api.example.com/mcp");assert.deepEqual(metadata.authorization_servers,["https://issuer.example"]);assert.ok(metadata.scopes_supported.includes("visual4d:render"));});
 test("resource metadata discovery URL is path scoped",()=>assert.equal(protectedResourceMetadataUrl("https://api.example.com/mcp"),"https://api.example.com/.well-known/oauth-protected-resource/mcp"));
 test("401 bearer challenge advertises RFC9728 metadata",()=>assert.equal(visual4DBearerChallenge("https://api.example.com/mcp"),'Bearer resource_metadata="https://api.example.com/.well-known/oauth-protected-resource/mcp"'));
+
+test("DCR without scope assigns only broker-advertised Visual 4D scopes",()=>{
+  assert.equal(resolveOAuthScopes(undefined,visualScopes),visualScopes.join(" "));
+});
+
+test("DCR preserves an explicit valid Visual 4D scope subset",()=>{
+  assert.equal(resolveOAuthScopes("visual4d:read   visual4d:render",visualScopes),"visual4d:read visual4d:render");
+});
+
+test("authorization scope resolution matches the registered Visual 4D set",()=>{
+  const registered=resolveOAuthScopes(undefined,visualScopes);
+  const authorized=resolveOAuthScopes(registered,visualScopes);
+  assert.equal(authorized,registered);
+});
+
+test("duplicate scopes are normalized without widening privileges",()=>{
+  assert.equal(resolveOAuthScopes("visual4d:read visual4d:read visual4d:render",visualScopes),"visual4d:read visual4d:render");
+});
+
+test("unknown OAuth scopes are rejected before upstream registration or authorization",()=>{
+  assert.throws(()=>resolveOAuthScopes("visual4d:read admin:all",visualScopes),/UNSUPPORTED_SCOPE/);
+});
