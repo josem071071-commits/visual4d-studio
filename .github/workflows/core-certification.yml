@@ -23,7 +23,7 @@ jobs:
           POSTGRES_USER: visual4d
           POSTGRES_PASSWORD: visual4d_ci_only
           POSTGRES_DB: visual4d_cert
-        ports:["5432:5432"]
+        ports: ["5432:5432"]
         options: >-
           --health-cmd="pg_isready -U visual4d -d visual4d_cert"
           --health-interval=5s
