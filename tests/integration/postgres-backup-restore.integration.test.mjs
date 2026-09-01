@@ -23,10 +23,13 @@ test("V4D-SAT: logical PostgreSQL backup restores project, ledger and idempotenc
   await ensureProductionSchema(databaseUrl);
 
   const actor={userId:"usr_recovery",sessionId:"recovery",permissions:["visual4d:write"]};
-  const request={name:"V4D-SAT Recovery Certification",projectType:"FLYER",requestId:"recovery-create-1"};
+  const title="V4D-SAT Recovery Certification";
+  const projectType="FLYER";
+  const requestId="recovery-create-1";
+  const ctx={actor,requestId};
   const repo=new PostgresProjectRepository({connectionString:databaseUrl});
   const workflow=new ProjectWorkflowService(repo);
-  const created=await workflow.createProject(actor,request);
+  const created=await workflow.createProject(title,ctx,projectType);
   await repo.close();
 
   const dir=await mkdtemp(path.join(os.tmpdir(),"visual4d-recovery-"));
@@ -43,11 +46,17 @@ test("V4D-SAT: logical PostgreSQL backup restores project, ledger and idempotenc
     const verify=new Pool({connectionString:databaseUrl});
     const project=(await verify.query("SELECT id,title,current_stage,status FROM projects WHERE id=$1",[created.projectId])).rows[0];
     assert.equal(project.id,created.projectId);
-    assert.equal(project.title,"V4D-SAT Recovery Certification");
+    assert.equal(project.title,title);
     assert.equal(project.current_stage,"DRAFT");
+    assert.equal(project.status,"DRAFT");
+
     const ledger=Number((await verify.query("SELECT count(*)::int AS n FROM visual4d_schema_migrations")).rows[0]?.n??0);
     assert.equal(ledger,6);
-    const idempotency=(await verify.query("SELECT status,result_json FROM idempotency_keys WHERE actor_user_id=$1 AND operation='projects.create' AND request_id=$2",[actor.userId,request.requestId])).rows[0];
+
+    const idempotency=(await verify.query(
+      "SELECT status,result_json FROM idempotency_keys WHERE actor_user_id=$1 AND operation=$2 AND request_id=$3",
+      [actor.userId,`project-create:${projectType}`,requestId]
+    )).rows[0];
     assert.equal(idempotency.status,"COMPLETED");
     assert.equal(idempotency.result_json.projectId,created.projectId);
     await verify.end();
@@ -57,7 +66,7 @@ test("V4D-SAT: logical PostgreSQL backup restores project, ledger and idempotenc
 
     const recoveredRepo=new PostgresProjectRepository({connectionString:databaseUrl});
     const recoveredWorkflow=new ProjectWorkflowService(recoveredRepo);
-    const replay=await recoveredWorkflow.createProject(actor,request);
+    const replay=await recoveredWorkflow.createProject(title,ctx,projectType);
     assert.equal(replay.projectId,created.projectId);
     await recoveredRepo.close();
   }finally{
