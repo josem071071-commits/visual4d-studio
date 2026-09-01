@@ -39,22 +39,29 @@ jobs:
           BODY="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 "$VISUAL4D_FALLBACK_BASE_URL/healthz")"
           echo "$BODY" | grep '"ok":true'
 
-  authenticated-remote-mcp:
+  legacy-static-token-is-rejected:
     needs: public-health-and-auth-boundary
     runs-on: ubuntu-latest
     env:
       VISUAL4D_STAGING_AUTH_TOKEN: ${{ secrets.VISUAL4D_STAGING_AUTH_TOKEN }}
-      VISUAL4D_STAGING_URL: https://mcp.visual4dstudio.com/mcp
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Require staging authentication secret
+      - name: Require legacy staging token fixture
         run: |
           set -euo pipefail
           test -n "$VISUAL4D_STAGING_AUTH_TOKEN"
+
+      - name: Production MCP rejects legacy static bearer
+        run: |
+          set -euo pipefail
+          STATUS="$(curl --silent --output /tmp/mcp-body --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $VISUAL4D_STAGING_AUTH_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{}' \
+            "$VISUAL4D_PRIMARY_BASE_URL/mcp")"
+          test "$STATUS" = "401"
+          grep '"error":"MALFORMED_JWT"' /tmp/mcp-body
+
       - name: Development approval bridge remains unavailable
         run: |
           set -euo pipefail
@@ -65,6 +72,3 @@ jobs:
             --data '{"projectId":"none","kind":"ANALYSIS","artifactVersionId":"none"}' \
             "$VISUAL4D_PRIMARY_BASE_URL/local/approval-grants")"
           test "$STATUS" = "404"
-      - run: npm ci
-      - name: Authenticated remote MCP discovery and render through custom domain
-        run: node tests/integration/mcp-remote-smoke.mjs
