@@ -2,6 +2,7 @@ import type { Visual4DProductionScope } from "./production-auth.js";
 
 export const VISUAL4D_TOOL_SCOPES: Readonly<Record<string, readonly Visual4DProductionScope[]>> = {
   "generation.render_preview": ["visual4d:render"],
+  "projects.create": ["visual4d:write"],
   "method.analyze": ["visual4d:write"],
   "method.structure": ["visual4d:write"],
   "method.resolve_resources": ["visual4d:write"],
