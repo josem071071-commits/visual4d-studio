@@ -19,7 +19,7 @@
     "test:integration:mcp": "npm run build:integration && node --test tests/integration/mcp-local.integration.test.mjs",
     "test:sprint2.2": "node --test tests/runtime/sprint2_2_contract.test.mjs",
     "start:mcp:local": "node dist-integration/services/mcp-server/src/local-server.js",
-    "start:mcp:production": "node dist-integration/services/mcp-server/src/production-server.js",
+    "start:mcp:production": "node scripts/ensure-production-schema.mjs && node dist-integration/services/mcp-server/src/production-server.js",
     "test:sprint2.3": "node --test tests/runtime/sprint2_3_certification.test.mjs",
     "test:sprint3": "node --test tests/runtime/sprint3_layout.test.mjs",
     "test:sprint3.1": "node --test tests/runtime/sprint3_1_renderer.test.mjs",
