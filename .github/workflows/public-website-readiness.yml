@@ -2,11 +2,18 @@ name: Visual 4D Public Website Readiness
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/validate-public-website.mjs'
+      - '.github/workflows/public-website-readiness.yml'
   push:
     branches: [main]
     paths:
       - 'website/**'
       - 'scripts/validate-public-website.mjs'
+      - '.github/workflows/public-website-readiness.yml'
 
 permissions:
   contents: read
