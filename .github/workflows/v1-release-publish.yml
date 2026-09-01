@@ -1,0 +1,54 @@
+name: Visual 4D v1.0.0 Publish
+
+on:
+  push:
+    branches:
+      - release/v1.0.0-publish
+    paths:
+      - '.github/workflows/v1-release-publish.yml'
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_SHA: 34daaec469c4fe0dd16f73f60e52567fd04066f2
+
+jobs:
+  publish-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout publisher branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify immutable certified main SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          ACTUAL_SHA="$(git rev-parse origin/main)"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "main moved: $ACTUAL_SHA" >&2; exit 1; }
+          if git ls-remote --exit-code --tags origin refs/tags/v1.0.0 >/dev/null 2>&1; then
+            echo 'v1.0.0 tag already exists' >&2
+            exit 1
+          fi
+      - name: Create certified v1.0.0 GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v1.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$EXPECTED_SHA" \
+            --title 'Visual 4D Studio v1.0.0' \
+            --notes $'Visual 4D Studio v1.0.0 — Technical Production Release\n\nCertified end-to-end by V4D-SAT.\n\nVerified fronts:\n- Public web and Cloudflare deployment\n- Railway production runtime\n- PostgreSQL schema, migrations, readiness, backup/restore and idempotency\n- OAuth 2.1/OIDC Authorization Code + PKCE\n- RS256 JWT issuer/audience/signature validation\n- MCP production transport and 11-tool catalog\n- Full Visual 4D workflow through FINAL and identity activation\n- Structured observability without bearer-token leakage\n- Multi-user isolation and least privilege\n- Legacy static-token rejection\n\nCertified source SHA: 34daaec469c4fe0dd16f73f60e52567fd04066f2\n\nPublic marketplace/submission readiness is tracked separately from this technical production release.'
+      - name: Verify release target and state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          JSON="$(gh release view v1.0.0 --repo "$GITHUB_REPOSITORY" --json tagName,targetCommitish,name,isDraft,isPrerelease)"
+          echo "$JSON"
+          node -e "const r=JSON.parse(process.argv[1]); if(r.tagName!=='v1.0.0'||r.targetCommitish!==process.env.EXPECTED_SHA||r.isDraft||r.isPrerelease) process.exit(1);" "$JSON"
