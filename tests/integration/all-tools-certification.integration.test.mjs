@@ -133,8 +133,6 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
     assert.equal(finalProject.currentStage,"FINAL");
     assert.equal(finalProject.finalDesignVersionId,design.id);
 
-    // The database enforces one ACTIVE identity per institution. A candidate identity
-    // must therefore exist as DRAFT and be promoted transactionally by the tool itself.
     const secondIdentity="sat_identity_v2";
     await pool.query(
       "INSERT INTO identity_versions(id,institution_id,version_number,name,status) VALUES($1,$2,2,'V4D-SAT v2','DRAFT')",
@@ -152,8 +150,16 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
     assert.equal(persisted.current_stage,"FINAL");
     assert.equal(persisted.status,"FINAL");
     assert.equal(persisted.final_design_version_id,design.id);
-    const auditCount=Number((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE project_id=$1",[project.projectId])).rows[0]?.n??0);
-    assert.ok(auditCount>0);
+
+    // Current audit contract stores actor/operation/request in event_payload. project_id is
+    // intentionally not part of the mutation audit writer yet, so certify the actual payload.
+    const auditRows=await pool.query(
+      "SELECT event_payload FROM audit_events WHERE event_type='MUTATION_COMPLETED' AND event_payload->>'actorUserId'=$1 ORDER BY id",
+      ["usr_v4d_sat"]
+    );
+    assert.ok(auditRows.rows.length>0);
+    assert.ok(auditRows.rows.some(r=>r.event_payload?.requestId==="sat-create-1"));
+    assert.ok(auditRows.rows.every(r=>typeof r.event_payload?.operation==="string" && typeof r.event_payload?.requestId==="string"));
   } finally {
     await client.close();
     await app.close();
