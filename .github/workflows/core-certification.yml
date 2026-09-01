@@ -91,6 +91,8 @@ jobs:
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
       - name: Production schema bootstrap + projects.create — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/production-schema-bootstrap.integration.test.mjs
+      - name: Migration 0006 UP/DOWN/UP — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/migration-0006-roundtrip.integration.test.mjs
       - name: V4D-SAT complete 11-tool MCP certification — zero skips
         run: npm run test:ci:all-tools-certification
       - name: PostgreSQL + MCP core certification — zero skips
