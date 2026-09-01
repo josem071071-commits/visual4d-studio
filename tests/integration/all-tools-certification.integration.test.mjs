@@ -72,11 +72,9 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
   });
 
   try{
-    // Catalog contract: exactly the 11 user-facing tools expected by V4D-SAT.
     const listed=await client.listTools();
     assert.deepEqual(listed.tools.map(t=>t.name).sort(),EXPECTED_TOOLS);
 
-    // 1) projects.create — real owner/institution/identity bootstrap + idempotent replay.
     const createArgs={name:"V4D-SAT Full Workflow Certification",projectType:"FLYER",requestId:"sat-create-1"};
     const project=await call("projects.create",createArgs);
     assert.match(project.projectId,/^project_/);
@@ -90,7 +88,6 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
     const institutionId=projectRow.institution_id;
     const originalIdentityId=projectRow.identity_version_id;
 
-    // Seed the resource contract required by a FLYER after project bootstrap.
     for(const [id,type,versionId,hash,isMaster] of [
       ["sat_logo","LOGO","sat_logo_v1","a",true],
       ["sat_banner","BANNER","sat_banner_v1","b",true],
@@ -107,48 +104,40 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
       await pool.query("UPDATE assets SET current_version_id=$2 WHERE id=$1",[id,versionId]);
     }
 
-    // 2) generation.render_preview — read-only deterministic renderer through MCP.
     const preview=await call("generation.render_preview",renderInput);
     assert.equal(preview.version,"visual4d.render-service.v1");
     assert.match(preview.svg,/<svg/);
 
-    // State-machine guard: structure cannot be skipped ahead before analysis approval.
     const premature=await callRaw("method.structure",{projectId:project.projectId,payload:{headline:"invalid"},requestId:"sat-premature"});
     assert.equal(premature.isError,true);
 
-    // 3) method.analyze + 4) approvals.approve_stage.
     const analysis=await call("method.analyze",{projectId:project.projectId,sourceContent:"Documento fuente V4D-SAT",requestId:`sat-${++seq}`});
     await approve(project.projectId,"ANALYSIS",analysis.id);
 
-    // 5) method.structure.
     const structure=await call("method.structure",{projectId:project.projectId,payload:{headline:"Certificación integral",sections:["evidencia","acción"]},requestId:`sat-${++seq}`});
     await approve(project.projectId,"STRUCTURE",structure.id);
 
-    // 6) method.resolve_resources.
     const resources=await call("method.resolve_resources",{projectId:project.projectId,requestId:`sat-${++seq}`});
     assert.deepEqual(resources.payload?.missingResources??[],[]);
     await approve(project.projectId,"RESOURCES",resources.id);
 
-    // 7) method.art_direct.
     const artDirection=await call("method.art_direct",{projectId:project.projectId,payload:{layout:"editorial",priority:"clarity"},requestId:`sat-${++seq}`});
     await approve(project.projectId,"ART_DIRECTION",artDirection.id);
 
-    // 8) generation.create_design.
     const design=await call("generation.create_design",{projectId:project.projectId,renderUri:"memory://v4d-sat-certification.svg",requestId:`sat-${++seq}`});
 
-    // 9) verification.save.
     const verification=await call("verification.save",{projectId:project.projectId,designVersionId:design.id,passed:true,criticalErrors:[],score:100,requestId:`sat-${++seq}`});
     await approve(project.projectId,"VERIFICATION",verification.id);
 
-    // 10) versions.mark_final.
     const finalProject=await call("versions.mark_final",{projectId:project.projectId,verificationVersionId:verification.id,requestId:`sat-${++seq}`});
     assert.equal(finalProject.currentStage,"FINAL");
     assert.equal(finalProject.finalDesignVersionId,design.id);
 
-    // 11) identity.activate_version — activate a second owner-bound identity atomically.
+    // The database enforces one ACTIVE identity per institution. A candidate identity
+    // must therefore exist as DRAFT and be promoted transactionally by the tool itself.
     const secondIdentity="sat_identity_v2";
     await pool.query(
-      "INSERT INTO identity_versions(id,institution_id,version_number,name,status) VALUES($1,$2,2,'V4D-SAT v2','ACTIVE')",
+      "INSERT INTO identity_versions(id,institution_id,version_number,name,status) VALUES($1,$2,2,'V4D-SAT v2','DRAFT')",
       [secondIdentity,institutionId]
     );
     const identityResult=await call("identity.activate_version",{institutionId,identityVersionId:secondIdentity,requestId:`sat-${++seq}`});
@@ -156,8 +145,9 @@ test("V4D-SAT: all 11 MCP tools execute in one real PostgreSQL workflow",{skip},
     const institution=(await pool.query("SELECT active_identity_version_id FROM institutions WHERE id=$1",[institutionId])).rows[0];
     assert.equal(institution.active_identity_version_id,secondIdentity);
     assert.notEqual(secondIdentity,originalIdentityId);
+    const identityStates=await pool.query("SELECT id,status FROM identity_versions WHERE institution_id=$1 ORDER BY version_number",[institutionId]);
+    assert.deepEqual(identityStates.rows.map(r=>[r.id,r.status]),[[originalIdentityId,"ARCHIVED"],[secondIdentity,"ACTIVE"]]);
 
-    // Persistence/audit assertions survive reread from PostgreSQL.
     const persisted=(await pool.query("SELECT current_stage,status,final_design_version_id FROM projects WHERE id=$1",[project.projectId])).rows[0];
     assert.equal(persisted.current_stage,"FINAL");
     assert.equal(persisted.status,"FINAL");
