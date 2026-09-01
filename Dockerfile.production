@@ -17,8 +17,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist-integration ./dist-integration
 COPY scripts/production-auth-preflight.mjs ./scripts/production-auth-preflight.mjs
-COPY scripts/ensure-production-schema.mjs ./scripts/ensure-production-schema.mjs
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["sh","-c","node scripts/ensure-production-schema.mjs && node scripts/production-auth-preflight.mjs && export VISUAL4D_MCP_PORT=${PORT:-8787}; exec node dist-integration/services/mcp-server/src/production-server.js"]
+CMD ["sh","-c","node dist-integration/services/mcp-server/src/ensure-production-schema.js && node scripts/production-auth-preflight.mjs && export VISUAL4D_MCP_PORT=${PORT:-8787}; exec node dist-integration/services/mcp-server/src/production-server.js"]
