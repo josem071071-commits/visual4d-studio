@@ -1,0 +1,53 @@
+name: Visual 4D Public Website Live Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/public-website-live-certification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  certify-live-public-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Cloudflare and certify public URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            "https://www.visual4dstudio.com/"
+            "https://www.visual4dstudio.com/privacy"
+            "https://www.visual4dstudio.com/terms"
+            "https://www.visual4dstudio.com/support"
+            "https://www.visual4dstudio.com/security"
+          )
+
+          for attempt in $(seq 1 24); do
+            echo "LIVE_SITE_ATTEMPT=$attempt"
+            ok=1
+            for url in "${urls[@]}"; do
+              body="$(mktemp)"
+              status="$(curl -L --connect-timeout 5 --max-time 15 -sS -o "$body" -w '%{http_code}' "$url" || true)"
+              if [[ "$status" != "200" ]] || ! grep -q "Visual 4D Studio" "$body"; then
+                echo "NOT_READY url=$url status=$status"
+                ok=0
+              else
+                echo "READY url=$url status=$status"
+              fi
+              rm -f "$body"
+            done
+            if [[ "$ok" == "1" ]]; then
+              echo "PUBLIC_WEBSITE_LIVE_CERTIFIED=true"
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "PUBLIC_WEBSITE_LIVE_CERTIFIED=false"
+          exit 1
