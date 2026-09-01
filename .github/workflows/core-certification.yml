@@ -87,6 +87,8 @@ jobs:
           npm run render:sprint3.4:sample
       - name: PostgreSQL UP/DOWN/UP — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
+      - name: Production schema bootstrap + projects.create — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/production-schema-bootstrap.integration.test.mjs
       - name: PostgreSQL + MCP core certification — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/core-certification.integration.test.mjs
       - name: Generate certification report
