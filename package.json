@@ -1,9 +1,13 @@
 {
   "name": "visual4d-prototype",
-  "version": "0.2.4-ci",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "services/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:core": "node --test tests/runtime/core.test.mjs",
@@ -54,5 +58,7 @@
     "@modelcontextprotocol/client": "2.0.0"
   },
   "packageManager": "npm@10.9.2",
-  "engines": {"node": ">=22.0.0"}
+  "engines": {
+    "node": ">=22.0.0"
+  }
 }
