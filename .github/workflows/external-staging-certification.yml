@@ -21,7 +21,7 @@ jobs:
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --retry 8 --retry-delay 2 "$VISUAL4D_PRIMARY_BASE_URL/healthz")"
           echo "$BODY" | grep '"ok":true'
-          echo "$BODY" | grep '"service":"visual4d-mcp-local"'
+          echo "$BODY" | grep '"service":"visual4d-mcp-production"'
 
       - name: Primary MCP rejects unauthenticated requests
         run: |
