@@ -9,7 +9,8 @@ const MIGRATIONS = [
   "0002_sprint2_hardening.sql",
   "0003_sprint2_1_security.sql",
   "0004_sprint2_2_pg_mcp.sql",
-  "0005_sprint2_3_core_certification.sql"
+  "0005_sprint2_3_core_certification.sql",
+  "0006_idempotency_actor_fk_deferred.sql"
 ] as const;
 
 const KNOWN_TABLES = [
@@ -134,13 +135,12 @@ export async function ensureProductionSchema(
     if (missing.length > 0) throw new Error(`SCHEMA_MIGRATIONS_INCOMPLETE:${missing.join(",")}`);
 
     const finalTables = new Set(await currentKnownTables(client));
-    const requiredForCreate = ["users", "institutions", "identity_versions", "projects", "audit_events", "idempotency_keys"];
-    const missingCreateTables = requiredForCreate.filter(table => !finalTables.has(table));
-    if (missingCreateTables.length > 0) {
-      throw new Error(`SCHEMA_PROJECT_CREATE_INCOMPLETE:${missingCreateTables.join(",")}`);
+    const missingTables = KNOWN_TABLES.filter(table => !finalTables.has(table));
+    if (missingTables.length > 0) {
+      throw new Error(`SCHEMA_APPLICATION_INCOMPLETE:${missingTables.join(",")}`);
     }
 
-    console.error(`[schema-bootstrap] status=ready schema=${schema} migrations=${finalVersions.length}`);
+    console.error(`[schema-bootstrap] status=ready schema=${schema} migrations=${finalVersions.length} tables=${finalTables.size}`);
     return { applied: newlyApplied, schema };
   } finally {
     await client.end();
