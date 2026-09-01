@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "steps": {
+    "build": {
+      "commands": ["...", "npm run build:integration"]
+    }
+  },
+  "deploy": {
+    "startCommand": "npm run start:mcp:production"
+  }
+}
