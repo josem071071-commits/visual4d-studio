@@ -97,6 +97,8 @@ jobs:
         run: node scripts/run-test-no-skip.mjs tests/integration/production-readiness.integration.test.mjs
       - name: Production structured observability — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/production-observability.integration.test.mjs
+      - name: PostgreSQL logical backup/restore recovery — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/postgres-backup-restore.integration.test.mjs
       - name: V4D-SAT complete 11-tool MCP certification — zero skips
         run: npm run test:ci:all-tools-certification
       - name: PostgreSQL + MCP core certification — zero skips

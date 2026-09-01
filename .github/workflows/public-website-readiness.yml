@@ -28,5 +28,11 @@ jobs:
           node-version: '22'
       - name: Validate public website
         run: node scripts/validate-public-website.mjs
-      - name: Confirm custom MCP health
+      - name: Confirm custom MCP liveness
         run: curl --fail --silent --show-error https://mcp.visual4dstudio.com/healthz
+      - name: Confirm custom MCP readiness
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error https://mcp.visual4dstudio.com/readyz)"
+          echo "$body"
+          node -e 'const v=JSON.parse(process.argv[1]); if(v.ok!==true||v.migrations!==6||v.tables!==17) process.exit(1)' "$body"

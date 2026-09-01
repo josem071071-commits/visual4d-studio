@@ -1,145 +1,135 @@
-# Visual 4D Studio — Production Cutover Runbook
+# Visual 4D Studio — Production Operations, Cutover and Rollback Runbook
 
-Sprint 4.11
+Owner process: **V4D-SAT — Equipo de Aseguramiento Integral de Sistemas Visual 4D**
 
-Target public domain: `https://www.visual4dstudio.com`
+Current state: **production-candidate operational**. The public website, Railway MCP runtime, PostgreSQL bootstrap, OAuth/ChatGPT integration and the 11-tool MCP workflow have all passed automated or real production certification. `publication_ready` remains fail-closed until the remaining branding/external publication gates are explicitly completed.
 
-Current status: domain declared by operator, not yet technically certified. Staging remains the only certified runtime endpoint.
+## Production topology
 
-## Objective
+- `https://www.visual4dstudio.com` — public product site on Cloudflare.
+- `/privacy`, `/terms`, `/support`, `/security` — certified public routes.
+- `https://mcp.visual4dstudio.com/mcp` — production MCP on Railway.
+- `https://mcp.visual4dstudio.com/healthz` — process liveness.
+- `https://mcp.visual4dstudio.com/readyz` — PostgreSQL/schema readiness.
+- Production schema contract — migrations `0001` through `0006`, 17 required application tables.
 
-Move Visual 4D Studio from certified staging to a production deployment without reusing staging credentials, weakening OAuth, or losing rollback capability.
+## Protected baseline
 
-## Preconditions
+The currently certified chain must never regress silently:
 
-Do not start cutover until all of the following are true:
+`WEB -> CLOUDFLARE -> RAILWAY -> POSTGRESQL -> OAUTH -> MCP -> tools/list(11) -> projects.create -> complete workflow -> CHATGPT`
 
-- final release candidate SHA selected;
-- Core, Production Auth, External HTTPS/MCP and Publication Readiness certifications are green on that exact SHA;
-- DNS control for `visual4dstudio.com` is verified;
-- production hosting target exists independently of staging;
-- Clerk production environment is configured;
-- exact OpenAI/ChatGPT redirect URI is known from a supported registration/submission surface;
-- public legal/support pages exist over HTTPS;
-- final app identity assets are approved;
-- backup/rollback point is recorded.
+Every production change must retain an exact rollback SHA and pass Core Certification before merge.
 
-## Intended public topology
+## Readiness semantics
 
-Recommended separation:
+`/healthz` answers whether the MCP process is alive. It deliberately does not depend on PostgreSQL.
 
-- `https://www.visual4dstudio.com` — public product site.
-- `https://www.visual4dstudio.com/privacy` — privacy policy.
-- `https://www.visual4dstudio.com/terms` — terms of service.
-- `https://www.visual4dstudio.com/support` — support/contact.
-- `https://www.visual4dstudio.com/security` — security reporting.
-- `https://mcp.visual4dstudio.com/mcp` — production MCP endpoint.
+`/readyz` answers whether the instance can serve stateful production work. HTTP 200 requires:
 
-The MCP subdomain is recommended so runtime traffic can be operated, observed and rolled back independently from the public website.
+- PostgreSQL connection succeeds;
+- `visual4d_schema_migrations` exists;
+- all six migration versions are present;
+- all 17 production tables are present.
 
-## DNS phase
+A degraded readiness response is HTTP 503 with a stable error code and `Retry-After`. Detailed missing-schema diagnostics are server-side only.
 
-1. Confirm registrar ownership/control.
-2. Record current DNS zone before changes.
-3. Configure `www` for the public website target.
-4. Configure `mcp` for the production runtime target.
-5. Keep TTL reasonably low during initial cutover.
-6. Verify DNS resolution from at least two independent public resolvers.
-7. Verify TLS certificates for both `www` and `mcp` before exposing OAuth traffic.
+## Deployment sequence
 
-## Production runtime phase
+1. Select an immutable commit SHA that passed Core Certification.
+2. Keep `railway.json` pinned to `Dockerfile.production`; CI rejects any drift.
+3. Railway builds the production image, ships canonical migration SQL and runs schema bootstrap before starting the MCP server.
+4. Wait for Railway deployment status `success`.
+5. Verify `/healthz` and `/readyz` from an independent external runner.
+6. Verify OAuth metadata, Bearer challenge and MCP discovery.
+7. Verify the 11-tool catalog remains unchanged unless an intentional, reviewed release modifies it.
+8. For public-site changes, require Cloudflare build success and live-route certification.
 
-1. Deploy the exact RC SHA to an isolated production service.
-2. Do not copy the staging static bearer secret into production.
-3. Configure production database and secrets independently.
-4. Configure production OIDC issuer/JWKS/audience values.
-5. Run production preflight and health checks.
-6. Confirm unauthenticated MCP requests receive the expected Bearer challenge and protected-resource metadata.
-7. Confirm staging authentication is rejected.
+## Release Candidate sequence
 
-## Clerk production phase
+A release candidate is an **exact SHA**, not a mutable branch description.
 
-1. Promote/recreate the Clerk configuration in Production.
-2. Preserve least privilege scopes:
-   - `visual4d:read`
-   - `visual4d:render`
-   - `visual4d:write`
-   - `visual4d:approve`
-   - `visual4d:identity`
-3. Initial ChatGPT authorization remains restricted to read/render unless the platform review explicitly requires more.
-4. Register the exact redirect URI supplied by OpenAI/ChatGPT. Never approximate it.
-5. Validate Authorization Code + PKCE.
-6. Validate issuer, audience, signature, expiry and per-user `sub` mapping.
-7. Validate disconnect/revocation behavior.
+- Manual: dispatch `Visual 4D Release Candidate` with a full 40-character SHA.
+- Automated: create a branch named `rc/<candidate-name>` pointing to the exact green SHA. The RC workflow automatically checks out and validates that SHA.
+- The RC identity gate validates publication metadata, core/integration builds, typecheck and production deployment configuration.
+- Promotion additionally requires Core, production auth, external MCP/readiness, public website and recovery gates to be green for that candidate.
 
-## Public policy phase
+Do not set `publication_ready=true` merely because an RC passes technical certification.
 
-Only after the pages are live and verified, set manifest URLs to:
+## Database recovery certification
 
-- `https://www.visual4dstudio.com/privacy`
-- `https://www.visual4dstudio.com/terms`
-- `https://www.visual4dstudio.com/support`
-- `https://www.visual4dstudio.com/security`
+CI demonstrates logical PostgreSQL recovery using `pg_dump`/`pg_restore`:
 
-Do not mark these URLs as live merely because the paths are planned.
+1. bootstrap the full production schema;
+2. create a real project through the domain service;
+3. create a logical backup;
+4. destroy the application schema;
+5. restore the backup;
+6. verify the project, six-entry migration ledger and completed idempotency record;
+7. rerun production bootstrap and require zero new migrations;
+8. replay the same idempotent project-creation request and require the original project ID.
 
-## End-to-end acceptance test
+This proves logical backup/restore feasibility. Provider-managed backup retention and disaster-recovery policy remain operational account settings and must be reviewed separately.
 
-Required production test sequence:
+## Observability
 
-1. Open the target ChatGPT/OpenAI app integration.
-2. Start OAuth authorization.
-3. Confirm Clerk consent displays only intended initial privileges.
-4. Complete PKCE callback successfully.
-5. Call MCP discovery/listing.
-6. Call `generation.render_preview` successfully.
-7. Attempt a write operation without write scope and confirm denial.
-8. Disconnect/revoke authorization.
-9. Confirm the revoked session/token can no longer operate.
-10. Reconnect and confirm a fresh authorization works.
+Production tool executions emit structured `[mcp-tool]` JSON events containing only operational metadata:
 
-## Monitoring immediately after cutover
+- tool;
+- authenticated actor ID;
+- outcome;
+- duration;
+- request/project/institution IDs when present;
+- sanitized error code when applicable.
 
-Monitor:
-
-- HTTP 5xx rate;
-- OAuth callback failures;
-- JWT validation failures;
-- MCP authorization failures by scope;
-- latency and timeout rate;
-- database migration/runtime errors;
-- unexpected write/approval attempts;
-- support/security reports.
+Bearer tokens and full tool payloads must never be logged. CI explicitly checks token non-disclosure.
 
 ## Rollback triggers
 
-Rollback immediately if any of these occur:
+Rollback or stop promotion immediately if any of these occur:
 
-- OAuth accepts invalid issuer/audience/signature;
-- unauthenticated MCP requests succeed;
-- staging bearer credentials work against production;
-- data isolation between users/projects fails;
-- approval scope or one-time grant enforcement fails;
-- production error rate prevents core rendering flow;
-- DNS/TLS instability makes the integration unreliable.
+- `/readyz` is persistently 503 after the expected bootstrap interval;
+- OAuth accepts invalid issuer/audience/signature or staging credentials;
+- unauthenticated MCP operations succeed;
+- data isolation between actors/projects fails;
+- stage approvals or one-time grants can be bypassed;
+- the 11-tool catalog changes unintentionally;
+- a schema migration cannot complete or recovery validation fails;
+- production error/latency prevents the core workflow;
+- public routes or TLS become unstable.
 
-## Rollback procedure
+## Runtime rollback procedure
 
-1. Disable new OAuth authorization if security is implicated.
-2. Restore previous production runtime deployment/RC.
-3. Revert DNS only if routing is the failure source.
-4. Preserve logs/evidence needed for incident analysis.
-5. Revoke affected credentials/tokens when appropriate.
-6. Re-run required certification gates before attempting cutover again.
+1. Freeze further merges and record the failing deployment SHA.
+2. Preserve logs and evidence before changing state.
+3. Redeploy the last certified rollback SHA in Railway.
+4. Do **not** roll back the database by running destructive DOWN migrations unless a migration-specific rollback has been explicitly reviewed against existing data.
+5. If data recovery is required, restore from the selected provider backup/logical backup into a controlled target first, validate schema/readiness, then perform the provider-approved cutover.
+6. Revoke affected tokens/credentials if security is implicated.
+7. Re-run `/healthz`, `/readyz`, OAuth/MCP discovery and Core Certification before reopening promotion.
 
-## Completion criteria
+## Cloudflare rollback
 
-Cutover is complete only when:
+Website and MCP routing are separated. A web rollback must not alter `mcp.visual4dstudio.com` unless the MCP route itself is the diagnosed failure.
 
-- public domain and MCP subdomain resolve reliably over HTTPS;
-- production OAuth end-to-end test passes;
-- legal/support URLs are live;
-- exact RC SHA is recorded;
-- all required workflow evidence corresponds to that SHA;
-- rollback has been tested or demonstrated feasible;
-- `publication_ready=true` is changed only after the remaining external submission gates are actually closed.
+1. Promote the previous known-good Cloudflare version.
+2. Verify `/`, `/privacy`, `/terms`, `/support`, `/security` externally.
+3. Preserve `www` custom-domain mapping and do not edit unrelated `mcp` DNS records.
+
+## Completion criteria for v1.0.0
+
+Technical promotion to v1.0.0 requires, at minimum:
+
+- 11 tools certified in one real PostgreSQL/MCP workflow;
+- state-machine negative paths certified;
+- schema bootstrap and migration 0006 round trip certified;
+- liveness/readiness and structured observability certified;
+- logical database backup/restore certified;
+- Railway and Cloudflare production deployments healthy;
+- public website routes healthy;
+- OAuth/ChatGPT production integration healthy;
+- immutable RC SHA certified;
+- rollback reference and runbook recorded;
+- no unresolved critical security defects.
+
+Public/marketplace publication is a separate gate: branding assets and any remaining external registration requirements must be explicitly approved before `publication_ready=true`.

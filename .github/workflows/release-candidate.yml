@@ -7,6 +7,9 @@ on:
         description: 'Exact 40-character commit SHA to certify'
         required: true
         type: string
+  push:
+    branches:
+      - 'rc/**'
 
 permissions:
   contents: read
@@ -14,17 +17,18 @@ permissions:
 jobs:
   rc-identity:
     runs-on: ubuntu-latest
+    env:
+      CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
     steps:
       - name: Validate candidate input
         shell: bash
         run: |
           set -euo pipefail
-          SHA='${{ inputs.candidate_sha }}'
-          [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'candidate_sha must be a full 40-character SHA'; exit 1; }
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'candidate SHA must be a full 40-character SHA'; exit 1; }
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ env.CANDIDATE_SHA }}
           fetch-depth: 0
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -35,7 +39,7 @@ jobs:
         run: npm ci
       - name: Verify immutable candidate identity
         env:
-          VISUAL4D_RC_SHA: ${{ inputs.candidate_sha }}
+          VISUAL4D_RC_SHA: ${{ env.CANDIDATE_SHA }}
         run: node scripts/validate-release-candidate.mjs
       - name: Validate publication package on exact candidate
         run: npm run validate:publication
@@ -53,7 +57,8 @@ jobs:
           {
             echo '## Visual 4D Release Candidate'
             echo ''
-            echo '- Candidate SHA: `${{ inputs.candidate_sha }}`'
+            echo "- Candidate SHA: \`$CANDIDATE_SHA\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
             echo '- Checkout identity: verified'
             echo '- Publication package: validated'
             echo '- Core build: passed'
@@ -62,5 +67,5 @@ jobs:
             echo '- Production deploy config: validated'
             echo '- Publication state: fail-closed pending external gates'
             echo ''
-            echo 'This workflow proves candidate identity and baseline integrity. Full RC promotion additionally requires Core, Production Auth, external HTTPS/MCP, public website and recovery gates to pass on this exact SHA.'
+            echo 'Full RC promotion additionally requires Core, Production Auth, external HTTPS/MCP, public website and recovery gates to pass on this exact SHA.'
           } >> "$GITHUB_STEP_SUMMARY"
