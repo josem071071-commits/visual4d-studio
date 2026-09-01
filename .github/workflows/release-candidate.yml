@@ -40,9 +40,13 @@ jobs:
       - name: Validate publication package on exact candidate
         run: npm run validate:publication
       - name: Build core on exact candidate
-        run: npm run build
+        run: npm run build:core
+      - name: Build integration targets on exact candidate
+        run: npm run build:integration
       - name: Typecheck exact candidate
         run: npm run typecheck
+      - name: Validate production deployment configuration
+        run: node scripts/validate-production-deploy-config.mjs
       - name: Write RC evidence summary
         shell: bash
         run: |
@@ -52,9 +56,11 @@ jobs:
             echo '- Candidate SHA: `${{ inputs.candidate_sha }}`'
             echo '- Checkout identity: verified'
             echo '- Publication package: validated'
-            echo '- Build: passed'
+            echo '- Core build: passed'
+            echo '- Integration build: passed'
             echo '- Typecheck: passed'
+            echo '- Production deploy config: validated'
             echo '- Publication state: fail-closed pending external gates'
             echo ''
-            echo 'This workflow proves candidate identity and baseline integrity. Full RC promotion additionally requires the Core, Production Auth, External HTTPS/MCP and Publication Readiness workflows to pass on this exact SHA.'
+            echo 'This workflow proves candidate identity and baseline integrity. Full RC promotion additionally requires Core, Production Auth, external HTTPS/MCP, public website and recovery gates to pass on this exact SHA.'
           } >> "$GITHUB_STEP_SUMMARY"

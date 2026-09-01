@@ -4,7 +4,7 @@ import pg from "pg";
 
 const { Client } = pg;
 
-const MIGRATIONS = [
+export const PRODUCTION_SCHEMA_MIGRATIONS = [
   "0001_core.sql",
   "0002_sprint2_hardening.sql",
   "0003_sprint2_1_security.sql",
@@ -13,7 +13,7 @@ const MIGRATIONS = [
   "0006_idempotency_actor_fk_deferred.sql"
 ] as const;
 
-const KNOWN_TABLES = [
+export const PRODUCTION_SCHEMA_TABLES = [
   "users",
   "institutions",
   "identity_versions",
@@ -44,41 +44,33 @@ function assertSafeIdentifier(value: string): string {
 }
 
 function stripMigrationTransaction(sql: string): string {
-  return sql
-    .replace(/^\s*BEGIN\s*;\s*/i, "")
-    .replace(/\s*COMMIT\s*;\s*$/i, "")
-    .trim();
+  return sql.replace(/^\s*BEGIN\s*;\s*/i, "").replace(/\s*COMMIT\s*;\s*$/i, "").trim();
 }
 
 async function currentKnownTables(client: InstanceType<typeof Client>): Promise<string[]> {
   const q = await client.query(
-    `SELECT table_name
-       FROM information_schema.tables
+    `SELECT table_name FROM information_schema.tables
       WHERE table_schema = current_schema()
         AND table_name = ANY($1::text[])
       ORDER BY table_name`,
-    [KNOWN_TABLES]
+    [PRODUCTION_SCHEMA_TABLES]
   );
   return q.rows.map((row: { table_name: string }) => row.table_name);
 }
 
 async function ledgerExists(client: InstanceType<typeof Client>): Promise<boolean> {
-  const q = await client.query(
-    `SELECT EXISTS(
-       SELECT 1 FROM information_schema.tables
-        WHERE table_schema=current_schema() AND table_name='visual4d_schema_migrations'
-     ) AS present`
-  );
+  const q = await client.query(`SELECT EXISTS(
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema=current_schema() AND table_name='visual4d_schema_migrations'
+  ) AS present`);
   return q.rows[0]?.present === true;
 }
 
 async function createLedger(client: InstanceType<typeof Client>): Promise<void> {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS visual4d_schema_migrations (
-      version TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `);
+  await client.query(`CREATE TABLE IF NOT EXISTS visual4d_schema_migrations (
+    version TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`);
 }
 
 export async function ensureProductionSchema(
@@ -108,18 +100,14 @@ export async function ensureProductionSchema(
     const migrationsDir = options.migrationsDir ?? path.join(process.cwd(), "database", "migrations");
     const newlyApplied: string[] = [];
 
-    for (const migration of MIGRATIONS) {
+    for (const migration of PRODUCTION_SCHEMA_MIGRATIONS) {
       if (alreadyApplied.has(migration)) continue;
-      const migrationPath = path.join(migrationsDir, migration);
-      const rawSql = await fs.readFile(migrationPath, "utf8");
+      const rawSql = await fs.readFile(path.join(migrationsDir, migration), "utf8");
       const sql = stripMigrationTransaction(rawSql);
       await client.query("BEGIN");
       try {
         await client.query(sql);
-        await client.query(
-          "INSERT INTO visual4d_schema_migrations(version) VALUES($1)",
-          [migration]
-        );
+        await client.query("INSERT INTO visual4d_schema_migrations(version) VALUES($1)",[migration]);
         await client.query("COMMIT");
         newlyApplied.push(migration);
         console.error(`[schema-bootstrap] applied=${migration}`);
@@ -131,14 +119,12 @@ export async function ensureProductionSchema(
 
     const finalRows = await client.query("SELECT version FROM visual4d_schema_migrations ORDER BY version");
     const finalVersions = finalRows.rows.map((row: { version: string }) => row.version);
-    const missing = MIGRATIONS.filter(migration => !finalVersions.includes(migration));
+    const missing = PRODUCTION_SCHEMA_MIGRATIONS.filter(migration => !finalVersions.includes(migration));
     if (missing.length > 0) throw new Error(`SCHEMA_MIGRATIONS_INCOMPLETE:${missing.join(",")}`);
 
     const finalTables = new Set(await currentKnownTables(client));
-    const missingTables = KNOWN_TABLES.filter(table => !finalTables.has(table));
-    if (missingTables.length > 0) {
-      throw new Error(`SCHEMA_APPLICATION_INCOMPLETE:${missingTables.join(",")}`);
-    }
+    const missingTables = PRODUCTION_SCHEMA_TABLES.filter(table => !finalTables.has(table));
+    if (missingTables.length > 0) throw new Error(`SCHEMA_APPLICATION_INCOMPLETE:${missingTables.join(",")}`);
 
     console.error(`[schema-bootstrap] status=ready schema=${schema} migrations=${finalVersions.length} tables=${finalTables.size}`);
     return { applied: newlyApplied, schema };
