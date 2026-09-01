@@ -23,7 +23,7 @@ jobs:
           POSTGRES_USER: visual4d
           POSTGRES_PASSWORD: visual4d_ci_only
           POSTGRES_DB: visual4d_cert
-        ports: ["5432:5432"]
+        ports:["5432:5432"]
         options: >-
           --health-cmd="pg_isready -U visual4d -d visual4d_cert"
           --health-interval=5s
@@ -91,6 +91,8 @@ jobs:
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-migration.test.mjs
       - name: Production schema bootstrap + projects.create — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/production-schema-bootstrap.integration.test.mjs
+      - name: V4D-SAT complete 11-tool MCP certification — zero skips
+        run: npm run test:ci:all-tools-certification
       - name: PostgreSQL + MCP core certification — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/core-certification.integration.test.mjs
       - name: Generate certification report
@@ -105,6 +107,7 @@ jobs:
           name: visual4d-core-certification-${{ github.sha }}
           path: |
             certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md
+            certification/V4D_SAT_PRODUCTION_BASELINE.md
             certification/samples/sprint3_1_reference.svg
             certification/samples/sprint3_2_asset_reference.svg
             certification/samples/sprint3_3_brand_reference.svg
