@@ -25,7 +25,7 @@ interface PendingTokenExchange extends PendingAuthorization {
 
 type JsonObject = Record<string, unknown>;
 
-const UPSTREAM_IDENTITY_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
+const UPSTREAM_IDENTITY_SCOPES = ["openid", "profile", "email"] as const;
 const UPSTREAM_IDENTITY_SCOPE_STRING = UPSTREAM_IDENTITY_SCOPES.join(" ");
 
 function base64url(value: Buffer) {
