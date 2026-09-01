@@ -1,4 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
 import {
   assertMasterAssetUsable,
   assertOwnerMatchesInstitution,
@@ -22,6 +21,10 @@ export interface MutationContext {
 }
 
 function v(currentVersionId: string | null, approvedVersionId: string | null) { return { currentVersionId, approvedVersionId }; }
+function stableHex(value:string){
+  const seeds=[0x811c9dc5,0x9e3779b9,0x85ebca6b];
+  return seeds.map(seed=>{let h=seed>>>0;for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,"0");}).join("");
+}
 
 export class ProjectWorkflowService {
   constructor(private readonly repo: ProjectRepository) {}
@@ -41,7 +44,7 @@ export class ProjectWorkflowService {
   }
 
   private personalIds(userId: string) {
-    const digest = createHash("sha256").update(userId).digest("hex").slice(0, 24);
+    const digest = stableHex(userId);
     return { institutionId: `personal_${digest}`, identityVersionId: `identity_${digest}_v1` };
   }
 
@@ -66,7 +69,7 @@ export class ProjectWorkflowService {
       }
       if (!identity || identity.institutionId !== institutionId) throw new ServiceError("IDENTITY_BOOTSTRAP_FAILED");
       const project: ProjectRecord = {
-        id: `project_${randomUUID()}`,
+        id: `project_${stableHex(`${ctx.actor.userId}:${ctx.requestId}`)}`,
         ownerUserId: ctx.actor.userId,
         institutionId,
         identityVersionId: identity.id,
@@ -160,7 +163,7 @@ export class ProjectWorkflowService {
       ANALYSIS:"ANALYSIS_REVIEW", STRUCTURE:"STRUCTURE_REVIEW", RESOURCES:"RESOURCES_REVIEW", ART_DIRECTION:"ART_DIRECTION_REVIEW", VERIFICATION:"VERIFICATION_REVIEW"
     };
     const stage=expectedStage[kind];
-    if(stage && project.currentStage!==stage) throw new ServiceError("ARTIFACT_NOT_AWAITING_APPROVAL");
+    if(stage&&project.currentStage!==stage)throw new ServiceError("ARTIFACT_NOT_AWAITING_APPROVAL");
     return {project,artifact};
   }
 
