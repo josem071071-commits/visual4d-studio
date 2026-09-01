@@ -16,6 +16,7 @@ ENV NODE_ENV=production \
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist-integration ./dist-integration
+COPY database ./database
 COPY scripts/production-auth-preflight.mjs ./scripts/production-auth-preflight.mjs
 USER node
 EXPOSE 8787
