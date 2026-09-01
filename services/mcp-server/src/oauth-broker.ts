@@ -101,13 +101,29 @@ function getScopeString(value: unknown) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 }
 
+/**
+ * Resolve the scopes assigned to an upstream dynamically registered client.
+ *
+ * ChatGPT may omit `scope` during DCR and request scopes later at /authorize.
+ * In that case the broker assigns only the scopes it advertises for Visual 4D,
+ * to that client registration, rather than relying on Clerk instance defaults.
+ */
+export function resolveOAuthScopes(value: unknown, supportedScopes: readonly string[]) {
+  const supported = [...new Set(supportedScopes)];
+  const raw = getScopeString(value);
+  const requested = raw ? [...new Set(raw.split(/\s+/).filter(Boolean))] : [];
+  const supportedSet = new Set(supported);
+  const unknown = requested.filter((scope) => !supportedSet.has(scope));
+  if (unknown.length) throw new Error("UNSUPPORTED_SCOPE");
+  return (requested.length ? requested : supported).join(" ");
+}
+
 export class OAuthBroker {
   private readonly issuer: string;
   private readonly publicOrigin: string;
   private readonly callbackUrl: string;
   private readonly resourceUri: string;
   private readonly scopes: string[];
-  private readonly visualScopes: Set<string>;
   private readonly ttlMs: number;
   private readonly pendingAuthorizations = new Map<string, PendingAuthorization>();
   private readonly pendingTokens = new Map<string, PendingTokenExchange>();
@@ -117,7 +133,6 @@ export class OAuthBroker {
     this.publicOrigin = options.publicOrigin.replace(/\/$/, "");
     this.callbackUrl = `${this.publicOrigin}/oauth/callback`;
     this.resourceUri = `${this.publicOrigin}/mcp`;
-    this.visualScopes = new Set(options.scopes);
     this.scopes = [...new Set(options.scopes)];
     this.ttlMs = options.transactionTtlMs ?? 10 * 60 * 1000;
   }
@@ -185,13 +200,14 @@ export class OAuthBroker {
     if (redirectUris.length === 0) throw new Error("redirect_uris is required");
 
     const downstreamScope = getScopeString(body.scope);
+    const effectiveScope = resolveOAuthScopes(body.scope, this.scopes);
     const upstreamPayload: JsonObject = {
       ...body,
       redirect_uris: [...new Set([...redirectUris, this.callbackUrl])],
       token_endpoint_auth_method: "none",
+      scope: effectiveScope,
     };
     delete upstreamPayload.resource;
-    delete upstreamPayload.scope;
 
     trace("register_request", {
       redirectUriCount: redirectUris.length,
@@ -199,7 +215,8 @@ export class OAuthBroker {
       callback: safeUrl(this.callbackUrl),
       tokenEndpointAuthMethod: "none",
       downstreamScopePresent: Boolean(downstreamScope),
-      upstreamScope: null,
+      upstreamScope: effectiveScope,
+      scopeSource: downstreamScope ? "downstream" : "broker_supported",
       upstreamResourceForwarded: false,
     });
 
@@ -219,8 +236,7 @@ export class OAuthBroker {
     if (response.ok) {
       try {
         const registered = JSON.parse(text) as JsonObject;
-        if (downstreamScope) registered.scope = downstreamScope;
-        else delete registered.scope;
+        registered.scope = effectiveScope;
         downstreamText = JSON.stringify(registered);
       } catch {
         trace("register_response_rewrite_skipped", { reason: "NON_JSON_RESPONSE" });
@@ -250,10 +266,7 @@ export class OAuthBroker {
     if (method !== "S256") throw new Error("PKCE_S256_REQUIRED");
     if (resource !== this.resourceUri) throw new Error("RESOURCE_MISMATCH");
 
-    const requestedScopes = (params.get("scope") ?? "").split(/\s+/).filter(Boolean);
-    const unknownScopes = requestedScopes.filter((scope) => !this.scopes.includes(scope));
-    if (unknownScopes.length) throw new Error("UNSUPPORTED_SCOPE");
-    const downstreamScopes = requestedScopes.filter((scope) => this.visualScopes.has(scope)).join(" ");
+    const downstreamScopes = resolveOAuthScopes(params.get("scope"), this.scopes);
 
     const upstreamState = randomUrlSafe(32);
     const upstreamCodeVerifier = randomUrlSafe(64);
@@ -277,13 +290,14 @@ export class OAuthBroker {
       codeChallengeMethod: method,
       resourceMatches: resource === this.resourceUri,
       scope: params.get("scope") ?? null,
+      effectiveScope: downstreamScopes,
     });
 
     const upstream = new URL(`${this.issuer}/oauth/authorize`);
     for (const [key, value] of params) {
       if (key !== "scope" && key !== "resource") upstream.searchParams.append(key, value);
     }
-    upstream.searchParams.delete("scope");
+    upstream.searchParams.set("scope", downstreamScopes);
     upstream.searchParams.set("redirect_uri", this.callbackUrl);
     upstream.searchParams.set("state", upstreamState);
     upstream.searchParams.set("code_challenge", upstreamChallenge);
@@ -293,7 +307,7 @@ export class OAuthBroker {
       destination: safeUrl(upstream.toString()),
       callback: safeUrl(this.callbackUrl),
       downstreamScopesPreserved: Boolean(downstreamScopes),
-      upstreamScope: null,
+      upstreamScope: downstreamScopes,
       upstreamResourceForwarded: false,
     });
 
@@ -351,7 +365,7 @@ export class OAuthBroker {
   }
 
   private async token(req: IncomingMessage, res: ServerResponse) {
-    if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
+    if (req.method !== "POST") return json(res, 405,{ error: "method_not_allowed" });
 
     const params = new URLSearchParams(await readBody(req));
     const grantType = requiredParam(params, "grant_type");
