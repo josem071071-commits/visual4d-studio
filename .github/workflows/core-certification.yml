@@ -55,6 +55,8 @@ jobs:
         run: npm ci
       - name: Certification environment guard
         run: node scripts/ci-environment-check.mjs
+      - name: Production deployment configuration guard
+        run: node scripts/validate-production-deploy-config.mjs
       - name: Build core
         run: npm run build:core
       - name: Full typecheck
