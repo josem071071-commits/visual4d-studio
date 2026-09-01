@@ -61,6 +61,8 @@ jobs:
         run: npm run typecheck
       - name: Build integration targets
         run: npm run build:integration
+      - name: Production auth and OAuth scope tests
+        run: npm run test:sprint4.6
       - name: Runtime and domain suites
         run: |
           npm run test:core
