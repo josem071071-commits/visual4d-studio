@@ -4,36 +4,54 @@
   "short_name": "Visual 4D",
   "tagline": "Del contenido a una pieza visual verificada.",
   "description": "Visual 4D Studio transforma contenido, recursos e identidad visual en piezas estructuradas, renderizadas y verificadas mediante un flujo trazable con controles de aprobación.",
-  "status": "pre-publication",
+  "status": "production-candidate",
   "integration": {
     "protocol": "MCP",
     "apps_sdk_ui": true,
     "staging_endpoint": "https://honest-success-production-6b40.up.railway.app/mcp",
     "primary_transport_endpoint": "https://mcp.visual4dstudio.com/mcp",
     "primary_health_endpoint": "https://mcp.visual4dstudio.com/healthz",
-    "transport_domain_status": "ci-certified",
+    "transport_domain_status": "production-operational",
     "transport_certification_run_id": 33296265862,
-    "production_endpoint": null,
+    "production_endpoint": "https://mcp.visual4dstudio.com/mcp",
     "public_domain": "https://www.visual4dstudio.com"
   },
-  "tools": [{"name":"generation.render_preview","classification":"read","description":"Genera una vista previa determinista y devuelve contenido estructurado para la interfaz de Visual 4D."}],
-  "resources": [{"uri":"ui://visual4d/render-preview.html","mime_type":"text/html+skybridge","description":"Vista previa integrada de Visual 4D Studio."}],
+  "tools": [
+    {"name":"projects.create","classification":"write"},
+    {"name":"method.analyze","classification":"write"},
+    {"name":"method.structure","classification":"write"},
+    {"name":"method.resolve_resources","classification":"write"},
+    {"name":"method.art_direct","classification":"write"},
+    {"name":"generation.render_preview","classification":"read","description":"Genera una vista previa determinista y devuelve contenido estructurado para la interfaz de Visual 4D."},
+    {"name":"generation.create_design","classification":"write"},
+    {"name":"verification.save","classification":"write"},
+    {"name":"approvals.approve_stage","classification":"approve"},
+    {"name":"versions.mark_final","classification":"write"},
+    {"name":"identity.activate_version","classification":"identity"}
+  ],
+  "resources": [
+    {"uri":"ui://visual4d/render-preview.html","mime_type":"text/html+skybridge","description":"Vista previa integrada de Visual 4D Studio."}
+  ],
   "authentication": {
     "staging": "static-bearer-test-only",
     "production_target": "oauth2.1-oidc-authorization-code-pkce",
     "production_provider": {
-      "name":"Clerk","environment":"development","discovery_url":"https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration","client_type":"public-pkce","consent_screen":true,
-      "requested_scopes":["email","profile","offline_access","visual4d:read","visual4d:render"],
+      "name":"Clerk",
+      "environment":"development",
+      "discovery_url":"https://open-boa-2840.clerk.accounts.dev/.well-known/openid-configuration",
+      "client_type":"public-pkce",
+      "consent_screen":true,
+      "requested_scopes":["email","profile","offline_access","visual4d:read","visual4d:render","visual4d:write","visual4d:approve","visual4d:identity"],
       "custom_scopes_advertised":["visual4d:read","visual4d:render","visual4d:write","visual4d:approve","visual4d:identity"],
-      "redirect_uri_status":"pending-chatgpt-callback"
+      "redirect_uri_status":"chatgpt-operational"
     },
-    "production_ready": false
+    "production_ready": true
   },
   "legal": {
-    "privacy_url": null,
-    "terms_url": null,
-    "support_url": null,
-    "security_url": null,
+    "privacy_url": "https://www.visual4dstudio.com/privacy",
+    "terms_url": "https://www.visual4dstudio.com/terms",
+    "support_url": "https://www.visual4dstudio.com/support",
+    "security_url": "https://www.visual4dstudio.com/security",
     "license": "proprietary",
     "legal_name": "Jose Guerrero",
     "operator": "Jose Guerrero",
