@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import {
   assertMasterAssetUsable,
   assertOwnerMatchesInstitution,
@@ -25,9 +26,65 @@ function v(currentVersionId: string | null, approvedVersionId: string | null) { 
 export class ProjectWorkflowService {
   constructor(private readonly repo: ProjectRepository) {}
 
-  private assertActor(actor: ActorContext, ownerUserId: string) {
+  private assertWrite(actor: ActorContext) {
     if (!actor.permissions.includes("visual4d:write")) throw new ServiceError("VISUAL4D_WRITE_PERMISSION_REQUIRED");
+  }
+
+  private assertActor(actor: ActorContext, ownerUserId: string) {
+    this.assertWrite(actor);
     if (actor.userId !== ownerUserId) throw new ServiceError("FORBIDDEN_PROJECT_OWNER_MISMATCH");
+  }
+
+  private async ensurePersistentActor(actor: ActorContext) {
+    const postgresLike = this.repo as ProjectRepository & { pool?: { query(sql:string, params?:unknown[]): Promise<unknown> } };
+    if (postgresLike.pool) await postgresLike.pool.query("INSERT INTO users(id) VALUES($1) ON CONFLICT(id) DO NOTHING", [actor.userId]);
+  }
+
+  private personalIds(userId: string) {
+    const digest = createHash("sha256").update(userId).digest("hex").slice(0, 24);
+    return { institutionId: `personal_${digest}`, identityVersionId: `identity_${digest}_v1` };
+  }
+
+  async createProject(title: string, ctx: MutationContext, projectType: ProjectRecord["projectType"] = "FLYER") {
+    return this.once(ctx, `project-create:${projectType}`, async () => {
+      this.assertWrite(ctx.actor);
+      await this.ensurePersistentActor(ctx.actor);
+      const { institutionId, identityVersionId } = this.personalIds(ctx.actor.userId);
+      let institution = await this.repo.getInstitution(institutionId);
+      if (institution && institution.ownerUserId !== ctx.actor.userId) throw new ServiceError("FORBIDDEN_PROJECT_OWNER_MISMATCH");
+      if (!institution) {
+        await this.repo.saveInstitution({ id: institutionId, ownerUserId: ctx.actor.userId, name: "Personal Visual 4D Studio", activeIdentityVersionId: null, status: "ACTIVE" });
+        institution = await this.repo.getInstitution(institutionId);
+      }
+      if (!institution) throw new ServiceError("INSTITUTION_BOOTSTRAP_FAILED");
+      let identity = institution.activeIdentityVersionId ? await this.repo.getIdentityVersion(institution.activeIdentityVersionId) : null;
+      if (!identity) {
+        identity = await this.repo.getIdentityVersion(identityVersionId);
+        if (!identity) await this.repo.saveIdentityVersion({ id: identityVersionId, institutionId, versionNumber: 1, status: "ACTIVE" });
+        await this.repo.activateIdentityVersion(institutionId, identityVersionId);
+        identity = await this.repo.getIdentityVersion(identityVersionId);
+      }
+      if (!identity || identity.institutionId !== institutionId) throw new ServiceError("IDENTITY_BOOTSTRAP_FAILED");
+      const project: ProjectRecord = {
+        id: `project_${randomUUID()}`,
+        ownerUserId: ctx.actor.userId,
+        institutionId,
+        identityVersionId: identity.id,
+        projectType,
+        title,
+        width: 1080,
+        height: 1920,
+        orientation: "PORTRAIT",
+        currentStage: "DRAFT",
+        status: "DRAFT",
+        revision: 0,
+        finalDesignVersionId: null
+      };
+      await this.repo.saveProject(project);
+      const saved = await this.repo.getProject(project.id);
+      if (!saved) throw new ServiceError("PROJECT_NOT_FOUND_AFTER_SAVE");
+      return { projectId: saved.id, name: saved.title, projectType: saved.projectType, status: saved.status, currentStage: saved.currentStage, width: saved.width, height: saved.height, orientation: saved.orientation };
+    });
   }
 
   private async loadProjectContext(projectId: string, actor: ActorContext) {
