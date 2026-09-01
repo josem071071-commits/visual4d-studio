@@ -1,0 +1,46 @@
+name: Visual 4D v1.0.0 Version Sync
+
+on:
+  push:
+    branches:
+      - release/v1.0.0-prep
+    paths:
+      - '.github/workflows/v1-version-sync.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v1.0.0-prep
+          fetch-depth: 0
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Atomically sync package metadata to v1.0.0
+        run: npm version 1.0.0 --no-git-tag-version
+      - name: Verify package and lock versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const p=require('./package.json');const l=require('./package-lock.json');if(p.version!=='1.0.0'||l.version!=='1.0.0'||l.packages?.['']?.version!=='1.0.0')process.exit(1);"
+      - name: Remove one-shot workflow and commit synchronized metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/v1-version-sync.yml
+          git add package.json package-lock.json
+          git diff --cached --check
+          git commit -m 'chore(release): promote package metadata to v1.0.0'
+          git push origin HEAD:release/v1.0.0-prep
