@@ -65,7 +65,7 @@ test("V4D-SAT: Approval UI Bridge issues and consumes exact one-time grants in p
     const approved=await client.callTool({name:"approvals.approve_stage",arguments:{projectId:created.projectId,kind:"ANALYSIS",artifactVersionId:analysis.id,approvalGrant:issued.approvalGrant,requestId:"approval-ui-approve"}});
     assert.equal(approved.isError??false,false);
 
-    // One-time means one-time: replay is rejected.
+    // One-time means one credential use, not one approval for the project lifecycle.
     const replay=await client.callTool({name:"approvals.approve_stage",arguments:{projectId:created.projectId,kind:"ANALYSIS",artifactVersionId:analysis.id,approvalGrant:issued.approvalGrant,requestId:"approval-ui-replay"}});
     assert.equal(replay.isError,true);
     assert.match(String(parse(replay).error),/INVALID_OR_EXPIRED_APPROVAL_GRANT/);
@@ -78,8 +78,21 @@ test("V4D-SAT: Approval UI Bridge issues and consumes exact one-time grants in p
 
     const states=await pool.query("SELECT state,count(*)::int AS n FROM approval_grants GROUP BY state ORDER BY state");
     assert.ok(states.rows.some(row=>row.state==="CONSUMED"&&Number(row.n)>=1));
-    const project=await pool.query("SELECT current_stage FROM projects WHERE id=$1",[created.projectId]);
-    assert.equal(project.rows[0]?.current_stage,"ANALYSIS_APPROVED");
+
+    // Approval is persisted while the project remains in REVIEW; the next workflow action
+    // proves that the exact current version approval unlocked the transition to STRUCTURING.
+    const approvalRow=await pool.query("SELECT decision,artifact_version_id FROM approvals WHERE project_id=$1 AND artifact_type='ANALYSIS' AND decision='APPROVED' ORDER BY id DESC LIMIT 1",[created.projectId]);
+    assert.equal(approvalRow.rows[0]?.decision,"APPROVED");
+    assert.equal(approvalRow.rows[0]?.artifact_version_id,analysis.id);
+    const projectBeforeNext=await pool.query("SELECT current_stage FROM projects WHERE id=$1",[created.projectId]);
+    assert.equal(projectBeforeNext.rows[0]?.current_stage,"ANALYSIS_REVIEW");
+
+    const structureResponse=await client.callTool({name:"method.structure",arguments:{projectId:created.projectId,payload:{headline:"Flujo desbloqueado"},requestId:"approval-ui-structure"}});
+    assert.equal(structureResponse.isError??false,false);
+    const structure=parse(structureResponse);
+    assert.equal(structure.kind,"STRUCTURE");
+    const projectAfterNext=await pool.query("SELECT current_stage FROM projects WHERE id=$1",[created.projectId]);
+    assert.equal(projectAfterNext.rows[0]?.current_stage,"STRUCTURE_REVIEW");
   } finally {
     await client.close();
     await app.close();
