@@ -121,7 +121,7 @@ const APPROVAL_UI_HTML=String.raw`<!doctype html>
     if(typeof text==='string'){try{return JSON.parse(text);}catch{}}
     return response ?? {};
   };
-  const requestId=(prefix)=>`${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
+  const requestId=(prefix)=>prefix+'-'+(globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36));
   if(!approval||typeof approval.projectId!=='string'||typeof approval.kind!=='string'||typeof approval.artifactVersionId!=='string'){
     button.disabled=true;status.textContent='Contexto de aprobación no disponible.';return;
   }
