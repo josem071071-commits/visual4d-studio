@@ -6,6 +6,7 @@ import { PostgresProjectRepository } from "../../../packages/postgres-repository
 import { ProjectWorkflowService } from "../../../packages/services/src/index.js";
 import type { ActorContext } from "../../../packages/repositories/src/index.js";
 import { PostgresApprovalGrantStore } from "./approval-grants.js";
+import { approvalMetaForTool, createApprovalGrantUiTool, registerApprovalUiResource, withApprovalStructuredContent } from "./approval-ui-bridge.js";
 import { registerRenderPreviewResource } from "./apps-ui.js";
 import { createRenderPreviewTool } from "./render-tool.js";
 import { createVisual4DToolRegistry } from "./tool-registry.js";
@@ -28,7 +29,7 @@ export interface ProductionMcpServerOptions {
 }
 
 const actorStorage=new AsyncLocalStorage<ActorContext>();
-const SERVER_VERSION="0.4.14";
+const SERVER_VERSION="0.4.15";
 
 function cors(res:ServerResponse){
   res.setHeader("access-control-allow-origin","*");
@@ -116,16 +117,20 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
         action
       )
     ),
-    createRenderPreviewTool()
+    createRenderPreviewTool(),
+    createApprovalGrantUiTool(grants,actorProvider)
   ];
-  console.error(`[mcp-catalog] version=${SERVER_VERSION} toolCount=${defs.length} tools=${defs.map(def=>def.name).join(",")}`);
+  const modelTools=defs.filter(def=>!((def._meta?.ui as {visibility?:string[]}|undefined)?.visibility?.length===1&&(def._meta?.ui as {visibility?:string[]}).visibility?.[0]==="app"));
+  console.error(`[mcp-catalog] version=${SERVER_VERSION} modelToolCount=${modelTools.length} registeredToolCount=${defs.length} tools=${modelTools.map(def=>def.name).join(",")}`);
   const server=new McpServer(
     {name:"visual4d-production",version:SERVER_VERSION,description:"Visual 4D Studio production MCP server for structured visual-design workflows."},
     {capabilities:{tools:{},resources:{}}}
   );
   registerRenderPreviewResource(server);
+  registerApprovalUiResource(server);
 
   for(const def of defs){
+    const effectiveMeta=approvalMetaForTool(def.name,def._meta);
     server.registerTool(
       def.name,
       {
@@ -133,7 +138,7 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
         description:def.description,
         inputSchema:fromJsonSchema(def.inputSchema),
         ...(def.annotations===undefined?{}:{annotations:def.annotations}),
-        ...(def._meta===undefined?{}:{_meta:def._meta})
+        ...(effectiveMeta===undefined?{}:{_meta:effectiveMeta})
       },
       async(args)=>{
         const actor=actorStorage.getStore();
@@ -150,12 +155,12 @@ export function buildProductionMcpServer(workflow:ProjectWorkflowService,grants:
         }
         try{
           const out=await def.execute(input);
-          const structuredContent=record(out);
+          const structuredContent=withApprovalStructuredContent(def.name,input,out);
           toolLog({tool:def.name,actorUserId:actor.userId,outcome:"success",durationMs:Date.now()-started,...context});
           return{
             content:[{type:"text" as const,text:JSON.stringify(out)}],
             ...(structuredContent===undefined?{}:{structuredContent}),
-            ...(def._meta===undefined?{}:{_meta:def._meta})
+            ...(effectiveMeta===undefined?{}:{_meta:effectiveMeta})
           };
         }catch(error){
           const message=error instanceof Error?error.message:String(error);

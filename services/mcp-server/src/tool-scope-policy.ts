@@ -11,6 +11,7 @@ export const VISUAL4D_TOOL_SCOPES: Readonly<Record<string, readonly Visual4DProd
   "verification.save": ["visual4d:write"],
   "versions.mark_final": ["visual4d:write"],
   "approvals.approve_stage": ["visual4d:approve"],
+  "approvals.issue_grant": ["visual4d:approve"],
   "identity.activate_version": ["visual4d:identity"]
 };
 
