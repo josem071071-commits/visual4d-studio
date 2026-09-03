@@ -102,6 +102,8 @@ jobs:
         run: node scripts/run-test-no-skip.mjs tests/integration/postgres-backup-restore.integration.test.mjs
       - name: Production multi-user isolation and least privilege — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/production-security-isolation.integration.test.mjs
+      - name: Production cross-instance persistence continuity — zero skips
+        run: node scripts/run-test-no-skip.mjs tests/integration/production-cross-instance-continuity.integration.test.mjs
       - name: Approval UI Bridge explicit-click production path — zero skips
         run: node scripts/run-test-no-skip.mjs tests/integration/approval-ui-bridge.integration.test.mjs
       - name: V4D-SAT complete 11-tool MCP certification — zero skips
