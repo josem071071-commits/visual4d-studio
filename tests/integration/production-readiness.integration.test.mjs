@@ -41,6 +41,11 @@ test("V4D-SAT: health stays live while readiness reflects PostgreSQL schema stat
     assert.equal(readyBody.ok,true);
     assert.equal(readyBody.migrations,6);
     assert.equal(readyBody.tables,17);
+    assert.match(readyBody.databaseFingerprint,/^[a-f0-9]{16}$/);
+
+    const secondReady=await fetch(`${baseUrl}/readyz`);
+    const secondBody=await secondReady.json();
+    assert.equal(secondBody.databaseFingerprint,readyBody.databaseFingerprint);
 
     await app.repo.pool.query("DROP TABLE approval_grants");
     const degraded=await fetch(`${baseUrl}/readyz`);
