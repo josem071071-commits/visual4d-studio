@@ -1,11 +1,23 @@
+import { createHash } from "node:crypto";
 import type { PgPool } from "../../../packages/postgres-repository/src/index.js";
 import { PRODUCTION_SCHEMA_MIGRATIONS, PRODUCTION_SCHEMA_TABLES } from "./ensure-production-schema.js";
 
 type Queryable = Pick<PgPool,"query">;
 
 export type ProductionReadiness =
-  | {ok:true;schema:string;migrations:number;tables:number}
+  | {ok:true;schema:string;migrations:number;tables:number;databaseFingerprint:string}
   | {ok:false;code:string;missingMigrations?:string[];missingTables?:string[]};
+
+async function databaseFingerprint(db:Queryable):Promise<string>{
+  const identity=await db.query(`SELECT
+    COALESCE(inet_server_addr()::text,'local') AS server_addr,
+    COALESCE(inet_server_port(),0) AS server_port,
+    current_database() AS database_name,
+    current_schema() AS schema_name`);
+  const row=identity.rows[0]??{};
+  const material=[row.server_addr,row.server_port,row.database_name,row.schema_name].map(String).join("|");
+  return createHash("sha256").update(material).digest("hex").slice(0,16);
+}
 
 export async function checkProductionReadiness(db:Queryable):Promise<ProductionReadiness>{
   try{
@@ -28,7 +40,7 @@ export async function checkProductionReadiness(db:Queryable):Promise<ProductionR
 
     if(missingMigrations.length>0)return{ok:false,code:"SCHEMA_MIGRATIONS_INCOMPLETE",missingMigrations:[...missingMigrations]};
     if(missingTables.length>0)return{ok:false,code:"SCHEMA_TABLES_INCOMPLETE",missingTables:[...missingTables]};
-    return{ok:true,schema,migrations:PRODUCTION_SCHEMA_MIGRATIONS.length,tables:PRODUCTION_SCHEMA_TABLES.length};
+    return{ok:true,schema,migrations:PRODUCTION_SCHEMA_MIGRATIONS.length,tables:PRODUCTION_SCHEMA_TABLES.length,databaseFingerprint:await databaseFingerprint(db)};
   }catch{
     return{ok:false,code:"DATABASE_UNAVAILABLE"};
   }
