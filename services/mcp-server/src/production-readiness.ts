@@ -4,8 +4,20 @@ import { PRODUCTION_SCHEMA_MIGRATIONS, PRODUCTION_SCHEMA_TABLES } from "./ensure
 type Queryable = Pick<PgPool,"query">;
 
 export type ProductionReadiness =
-  | {ok:true;schema:string;migrations:number;tables:number}
+  | {ok:true;schema:string;migrations:number;tables:number;databaseFingerprint:string}
   | {ok:false;code:string;missingMigrations?:string[];missingTables?:string[]};
+
+async function databaseFingerprint(db:Queryable):Promise<string>{
+  const identity=await db.query(`SELECT substr(md5(concat_ws('|',
+    COALESCE(inet_server_addr()::text,'local'),
+    COALESCE(inet_server_port(),0)::text,
+    current_database(),
+    current_schema()
+  )),1,16) AS fingerprint`);
+  const fingerprint=identity.rows[0]?.fingerprint;
+  if(typeof fingerprint!=="string"||!/^[a-f0-9]{16}$/.test(fingerprint))throw new Error("DATABASE_FINGERPRINT_UNAVAILABLE");
+  return fingerprint;
+}
 
 export async function checkProductionReadiness(db:Queryable):Promise<ProductionReadiness>{
   try{
@@ -28,7 +40,7 @@ export async function checkProductionReadiness(db:Queryable):Promise<ProductionR
 
     if(missingMigrations.length>0)return{ok:false,code:"SCHEMA_MIGRATIONS_INCOMPLETE",missingMigrations:[...missingMigrations]};
     if(missingTables.length>0)return{ok:false,code:"SCHEMA_TABLES_INCOMPLETE",missingTables:[...missingTables]};
-    return{ok:true,schema,migrations:PRODUCTION_SCHEMA_MIGRATIONS.length,tables:PRODUCTION_SCHEMA_TABLES.length};
+    return{ok:true,schema,migrations:PRODUCTION_SCHEMA_MIGRATIONS.length,tables:PRODUCTION_SCHEMA_TABLES.length,databaseFingerprint:await databaseFingerprint(db)};
   }catch{
     return{ok:false,code:"DATABASE_UNAVAILABLE"};
   }
