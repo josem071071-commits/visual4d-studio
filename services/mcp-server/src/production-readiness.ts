@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { PgPool } from "../../../packages/postgres-repository/src/index.js";
 import { PRODUCTION_SCHEMA_MIGRATIONS, PRODUCTION_SCHEMA_TABLES } from "./ensure-production-schema.js";
 
@@ -9,14 +8,15 @@ export type ProductionReadiness =
   | {ok:false;code:string;missingMigrations?:string[];missingTables?:string[]};
 
 async function databaseFingerprint(db:Queryable):Promise<string>{
-  const identity=await db.query(`SELECT
-    COALESCE(inet_server_addr()::text,'local') AS server_addr,
-    COALESCE(inet_server_port(),0) AS server_port,
-    current_database() AS database_name,
-    current_schema() AS schema_name`);
-  const row=identity.rows[0]??{};
-  const material=[row.server_addr,row.server_port,row.database_name,row.schema_name].map(String).join("|");
-  return createHash("sha256").update(material).digest("hex").slice(0,16);
+  const identity=await db.query(`SELECT substr(md5(concat_ws('|',
+    COALESCE(inet_server_addr()::text,'local'),
+    COALESCE(inet_server_port(),0)::text,
+    current_database(),
+    current_schema()
+  )),1,16) AS fingerprint`);
+  const fingerprint=identity.rows[0]?.fingerprint;
+  if(typeof fingerprint!=="string"||!/^[a-f0-9]{16}$/.test(fingerprint))throw new Error("DATABASE_FINGERPRINT_UNAVAILABLE");
+  return fingerprint;
 }
 
 export async function checkProductionReadiness(db:Queryable):Promise<ProductionReadiness>{
