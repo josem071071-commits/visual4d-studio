@@ -3,7 +3,8 @@ import type { ActorContext, ArtifactKind } from "../../../packages/repositories/
 import type { ApprovalGrantStore } from "./approval-grants.js";
 import type { ActorProvider, ToolDefinition } from "./tool-registry.js";
 
-export const APPROVAL_UI_RESOURCE_URI="ui://visual4d/approval-v2.html";
+export const APPROVAL_UI_RESOURCE_URI="ui://visual4d/approval.html";
+export const APPROVAL_UI_MCP_RESOURCE_URI="ui://visual4d/approval-v2.html";
 export const APPROVAL_UI_MIME_TYPE="text/html;profile=mcp-app";
 export const APPROVAL_GRANT_TOOL_NAME="approvals.issue_grant";
 
@@ -34,7 +35,7 @@ export function approvalMetaForTool(toolName:string,base?:Record<string,unknown>
   if(!kind)return base;
   return{
     ...(base??{}),
-    ui:{resourceUri:APPROVAL_UI_RESOURCE_URI,visibility:["model","app"]},
+    ui:{resourceUri:APPROVAL_UI_MCP_RESOURCE_URI,visibility:["model","app"]},
     "openai/outputTemplate":APPROVAL_UI_RESOURCE_URI,
     "openai/widgetAccessible":true,
     "openai/toolInvocation/invoked":"Etapa Visual 4D lista para aprobación.",
@@ -154,7 +155,7 @@ const APPROVAL_UI_HTML=String.raw`<!doctype html>
 export function registerApprovalUiResource(server:McpServer):void{
   server.registerResource(
     "visual4d-approval-ui",
-    APPROVAL_UI_RESOURCE_URI,
+    APPROVAL_UI_MCP_RESOURCE_URI,
     {title:"Visual 4D Approval",description:"Explicit user-action approval surface for exact Visual 4D artifact versions.",mimeType:APPROVAL_UI_MIME_TYPE},
     async uri=>({contents:[{uri:uri.href,mimeType:APPROVAL_UI_MIME_TYPE,text:APPROVAL_UI_HTML,_meta:{ui:{prefersBorder:true,csp:{connectDomains:[],resourceDomains:[]}},"openai/widgetPrefersBorder":true,"openai/widgetCSP":{connect_domains:[],resource_domains:[]}}}]})
   );
