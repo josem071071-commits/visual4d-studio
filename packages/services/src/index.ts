@@ -20,10 +20,43 @@ export interface MutationContext {
   expectedProjectRevision?: number;
 }
 
+export interface AnalysisInput {
+  sourceContent: string;
+  analysisSummary: string;
+  objective: string | null;
+  essentialInformation: string[];
+  missingInformation: string[];
+  timeline?: string[];
+  agreements?: string[];
+  commitments?: string[];
+  validationFlags?: string[];
+}
+
 function v(currentVersionId: string | null, approvedVersionId: string | null) { return { currentVersionId, approvedVersionId }; }
 function stableHex(value:string){
   const seeds=[0x811c9dc5,0x9e3779b9,0x85ebca6b];
   return seeds.map(seed=>{let h=seed>>>0;for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,"0");}).join("");
+}
+function normalizeStringArray(values:unknown):string[]{return Array.isArray(values)?values.filter((value):value is string=>typeof value==="string").map(value=>value.trim()).filter(Boolean):[];}
+function normalizeAnalysis(input:string|AnalysisInput):AnalysisInput{
+  if(typeof input==="string"){
+    const sourceContent=input.trim();
+    return{sourceContent,analysisSummary:sourceContent,objective:sourceContent||null,essentialInformation:sourceContent?[sourceContent]:[],missingInformation:[],timeline:[],agreements:[],commitments:[],validationFlags:[]};
+  }
+  return{
+    sourceContent:input.sourceContent.trim(),
+    analysisSummary:input.analysisSummary.trim(),
+    objective:typeof input.objective==="string"&&input.objective.trim()?input.objective.trim():null,
+    essentialInformation:normalizeStringArray(input.essentialInformation),
+    missingInformation:normalizeStringArray(input.missingInformation),
+    timeline:normalizeStringArray(input.timeline),
+    agreements:normalizeStringArray(input.agreements),
+    commitments:normalizeStringArray(input.commitments),
+    validationFlags:normalizeStringArray(input.validationFlags)
+  };
+}
+function assertAnalysisComplete(input:AnalysisInput){
+  if(!input.sourceContent||!input.analysisSummary||!input.objective||input.essentialInformation.length===0)throw new ServiceError("ANALYSIS_INCOMPLETE");
 }
 
 export class ProjectWorkflowService {
@@ -141,13 +174,15 @@ export class ProjectWorkflowService {
     return reread;
   }
 
-  async startAnalysis(projectId: string, sourceContent: string, ctx: MutationContext) {
+  async startAnalysis(projectId: string, analysisInput: string | AnalysisInput, ctx: MutationContext) {
+    const analysis=normalizeAnalysis(analysisInput);
+    assertAnalysisComplete(analysis);
     return this.once(ctx, `analysis:${projectId}`, async () => {
       const { project } = await this.loadProjectContext(projectId, ctx.actor);
       let p = project;
       if (p.currentStage === "DRAFT" || p.currentStage === "ANALYSIS_REVIEW") p = await this.move(p, "ANALYZING");
       if (p.currentStage !== "ANALYZING") throw new ServiceError("ANALYSIS_STAGE_REQUIRED");
-      const artifact = await this.repo.createArtifactVersion({ projectId, kind: "ANALYSIS", payload: { sourceContent, objective: null, essentialInformation: [], missingInformation: [] } });
+      const artifact = await this.repo.createArtifactVersion({ projectId, kind: "ANALYSIS", payload: analysis });
       await this.move(p, "ANALYSIS_REVIEW");
       return artifact;
     });
@@ -159,6 +194,7 @@ export class ProjectWorkflowService {
     if (!artifact || artifact.projectId !== projectId || artifact.kind !== kind) throw new ServiceError("ARTIFACT_VERSION_MISMATCH");
     const latest = await this.repo.getLatestArtifact(projectId, kind);
     if (!latest || latest.id !== artifactVersionId) throw new ServiceError("STALE_ARTIFACT_CANNOT_BE_APPROVED");
+    if(kind==="ANALYSIS")assertAnalysisComplete(normalizeAnalysis(artifact.payload as AnalysisInput));
     const expectedStage: Partial<Record<ArtifactKind,string>> = {
       ANALYSIS:"ANALYSIS_REVIEW", STRUCTURE:"STRUCTURE_REVIEW", RESOURCES:"RESOURCES_REVIEW", ART_DIRECTION:"ART_DIRECTION_REVIEW", VERIFICATION:"VERIFICATION_REVIEW"
     };
@@ -174,6 +210,7 @@ export class ProjectWorkflowService {
       if (!artifact || artifact.projectId !== projectId || artifact.kind !== kind) throw new ServiceError("ARTIFACT_VERSION_MISMATCH");
       const latest = await this.repo.getLatestArtifact(projectId, kind);
       if (!latest || latest.id !== artifactVersionId) throw new ServiceError("STALE_ARTIFACT_CANNOT_BE_APPROVED");
+      if(kind==="ANALYSIS")assertAnalysisComplete(normalizeAnalysis(artifact.payload as AnalysisInput));
       await this.repo.saveApproval({ projectId, artifactKind: kind, artifactVersionId, decision: "APPROVED", origin: "USER_APPROVED", approvedByUserId: ctx.actor.userId, approvedAt: new Date().toISOString() });
       return { approved: true, projectId, kind, artifactVersionId, projectRevision: project.revision };
     });
