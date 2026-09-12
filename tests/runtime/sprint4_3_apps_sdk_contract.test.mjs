@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRenderPreviewTool } from "../../dist-integration/services/mcp-server/src/render-tool.js";
 import { registerRenderPreviewResource, RENDER_PREVIEW_MIME_TYPE, RENDER_PREVIEW_RESOURCE_URI } from "../../dist-integration/services/mcp-server/src/apps-ui.js";
-import { APPROVAL_GRANT_TOOL_NAME, APPROVAL_UI_MIME_TYPE, APPROVAL_UI_RESOURCE_URI, approvalMetaForTool, createApprovalGrantUiTool, registerApprovalUiResource, withApprovalStructuredContent } from "../../dist-integration/services/mcp-server/src/approval-ui-bridge.js";
+import { APPROVAL_GRANT_TOOL_NAME, APPROVAL_UI_MIME_TYPE, APPROVAL_UI_RESOURCE_URI, APPROVAL_UI_MCP_RESOURCE_URI, approvalMetaForTool, createApprovalGrantUiTool, registerApprovalUiResource, withApprovalStructuredContent } from "../../dist-integration/services/mcp-server/src/approval-ui-bridge.js";
 import { MemoryApprovalGrantStore } from "../../dist-integration/services/mcp-server/src/approval-grants.js";
 
 test("Sprint 4.3 render tool advertises ChatGPT and MCP Apps UI metadata",()=>{
@@ -35,6 +35,7 @@ test("Sprint 4.3 registers a self-contained read-only preview resource",async()=
 test("Approval UI is attached only to approvable workflow stages",()=>{
   const analysis=approvalMetaForTool("method.analyze");
   assert.equal(analysis?.["openai/outputTemplate"],APPROVAL_UI_RESOURCE_URI);
+  assert.equal(analysis?.ui?.resourceUri,APPROVAL_UI_MCP_RESOURCE_URI);
   assert.equal(analysis?.["openai/widgetAccessible"],true);
   assert.deepEqual(analysis?.ui?.visibility,["model","app"]);
   assert.equal(analysis?.["visual4d/approvalKind"],"ANALYSIS");
@@ -64,10 +65,13 @@ test("Approval resource renders an explicit user button and performs issue then 
   const fake={registerResource(name,uri,config,callback){captured={name,uri,config,callback};}};
   registerApprovalUiResource(fake);
   assert.equal(captured.name,"visual4d-approval-ui");
-  assert.equal(captured.uri,APPROVAL_UI_RESOURCE_URI);
+  assert.equal(captured.uri,APPROVAL_UI_MCP_RESOURCE_URI);
   assert.equal(captured.config.mimeType,APPROVAL_UI_MIME_TYPE);
-  const result=await captured.callback(new URL(APPROVAL_UI_RESOURCE_URI));
+  const result=await captured.callback(new URL(APPROVAL_UI_MCP_RESOURCE_URI));
   const resource=result.contents[0];
+  assert.equal(resource.uri,APPROVAL_UI_MCP_RESOURCE_URI);
+  assert.equal(resource.mimeType,APPROVAL_UI_MIME_TYPE);
+  assert.equal(resource._meta.ui.prefersBorder,true);
   assert.match(resource.text,/Aprobar etapa/);
   assert.match(resource.text,/window\.openai\.callTool\('approvals\.issue_grant'/);
   assert.match(resource.text,/window\.openai\.callTool\('approvals\.approve_stage'/);
