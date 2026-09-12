@@ -72,6 +72,30 @@ test("structure is blocked without exact analysis approval", async () => {
   await assert.rejects(() => service.structure("proj_1", { headline: "No" }, ctx()), e => e instanceof TransitionError && e.code === "ANALYSIS_APPROVAL_REQUIRED");
 });
 
+test("analysis can be revised in ANALYSIS_REVIEW without approving an incomplete version", async () => {
+  const { repo, service } = fixture();
+  const first = await service.startAnalysis("proj_1", "Incomplete source", ctx());
+  assert.equal((await repo.getProject("proj_1"))?.currentStage, "ANALYSIS_REVIEW");
+
+  const second = await service.startAnalysis("proj_1", "Corrected source", ctx());
+  assert.notEqual(second.id, first.id);
+  assert.equal((await repo.getProject("proj_1"))?.currentStage, "ANALYSIS_REVIEW");
+  assert.equal((await repo.getLatestArtifact("proj_1", "ANALYSIS"))?.id, second.id);
+
+  await assert.rejects(
+    () => service.validateApprovalCandidate("proj_1", "ANALYSIS", first.id, actor),
+    e => e instanceof ServiceError && e.code === "STALE_ARTIFACT_CANNOT_BE_APPROVED"
+  );
+  await assert.rejects(
+    () => service.structure("proj_1", { headline: "Still blocked" }, ctx()),
+    e => e instanceof TransitionError && e.code === "ANALYSIS_APPROVAL_REQUIRED"
+  );
+
+  await service.approve("proj_1", "ANALYSIS", second.id, ctx());
+  const structure = await service.structure("proj_1", { headline: "Now allowed" }, ctx());
+  assert.equal(structure.kind, "STRUCTURE");
+});
+
 test("resource resolver reports missing hero media and blocks art direction", async () => {
   const { service } = fixture({ includeHero:false });
   const analysis = await service.startAnalysis("proj_1", "Source", ctx());

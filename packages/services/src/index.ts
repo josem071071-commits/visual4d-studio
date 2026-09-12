@@ -145,7 +145,7 @@ export class ProjectWorkflowService {
     return this.once(ctx, `analysis:${projectId}`, async () => {
       const { project } = await this.loadProjectContext(projectId, ctx.actor);
       let p = project;
-      if (p.currentStage === "DRAFT") p = await this.move(p, "ANALYZING");
+      if (p.currentStage === "DRAFT" || p.currentStage === "ANALYSIS_REVIEW") p = await this.move(p, "ANALYZING");
       if (p.currentStage !== "ANALYZING") throw new ServiceError("ANALYSIS_STAGE_REQUIRED");
       const artifact = await this.repo.createArtifactVersion({ projectId, kind: "ANALYSIS", payload: { sourceContent, objective: null, essentialInformation: [], missingInformation: [] } });
       await this.move(p, "ANALYSIS_REVIEW");
