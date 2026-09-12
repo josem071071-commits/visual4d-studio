@@ -66,6 +66,15 @@ export function extractAnalysisFromSource(sourceContent: string): ExtractedAnaly
     if (original !== line || lower.startsWith("fecha:") || lower.startsWith("lugar:") || lower.startsWith("asistencia:") || lower.includes("participantes") || lower.includes("tareas estratégicas") || lower.includes("tareas estrategicas") || lower.includes("ejes transversales") || lower.includes("cobertura")) essential.push(line);
   }
 
+  if (!objective && lines.length > 0) {
+    objective = "Analizar y estructurar el contenido fuente proporcionado.";
+    const flag = "Objetivo explícito no identificado en la fuente; se requiere validación humana del objetivo inferido.";
+    missing.push(flag);
+    validationFlags.push(flag);
+  }
+
+  if (essential.length === 0 && lines.length > 0) essential.push(lines[0].replace(/^[-*•]\s*/, "").trim());
+
   essential.push(...agreements.map(value => "Acuerdo: " + value));
   essential.push(...commitments.map(value => "Compromiso: " + value));
   essential.push(...timeline.map(value => "Cronología: " + value));
