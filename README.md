@@ -1,80 +1,95 @@
-# Visual 4D Prototype v0.2.2
+# Visual 4D Studio v1.0.0
 
-Sprint 2.2 adds a **real PostgreSQL repository** and a **local authenticated MCP v2 HTTP server** while preserving the Visual 4D gated workflow.
+Visual 4D Studio is a production-candidate visual workflow system exposed through MCP and an Apps SDK interface. The repository is no longer accurately described as the local-only v0.2.2 prototype.
 
-## Current pipeline
+Its gated workflow is:
 
 `ANALYZE → USER APPROVAL → STRUCTURE → USER APPROVAL → RESOURCES → USER APPROVAL → ART DIRECTION → USER APPROVAL → DESIGN VERSION → VERIFY EXACT DESIGN → USER APPROVAL → FINAL`
 
-## Security invariants
+## Current verified state
+
+The repository records the following as implemented, deployed, or certified:
+
+| Area | State | Meaning |
+| --- | --- | --- |
+| Package release | **v1.0.0** | Package metadata was promoted on September 1, 2026. |
+| Public website | **Deployed and route-certified** | The Cloudflare site and the public legal, support, and security routes passed the recorded live-site checks. |
+| Production MCP | **Deployed and operational** | Railway serves the MCP endpoint, liveness endpoint, and database-aware readiness endpoint. |
+| PostgreSQL schema | **Bootstrapped and certified** | Migrations `0001`–`0006`, the 17-table contract, migration round trip, and logical backup/restore are covered by certification gates. |
+| MCP catalog | **11 tools certified** | The complete catalog is exercised by the recorded real PostgreSQL/MCP workflow certification. |
+| `projects.create` | **End-to-end certified** | Project creation is included in the protected production chain, including persistence and idempotent replay. |
+| OAuth/ChatGPT path | **Operationally certified** | The repository records working OAuth/ChatGPT integration and production endpoint discovery. See the qualification below. |
+| Publication | **Pending** | Technical operation does not imply marketplace/publication approval; `publication_ready` remains `false`. |
+
+The canonical evidence and status qualifications are maintained in [Current Status](docs/release/CURRENT_STATUS.md). Operational deployment and rollback details remain in [Production Operations, Cutover and Rollback Runbook](docs/release/PRODUCTION_CUTOVER_RUNBOOK.md).
+
+## Production topology
+
+- Public site: `https://www.visual4dstudio.com`
+- Production MCP: `https://mcp.visual4dstudio.com/mcp`
+- Liveness: `https://mcp.visual4dstudio.com/healthz`
+- Readiness: `https://mcp.visual4dstudio.com/readyz`
+- Staging MCP: retained separately for testing
+
+## Certified MCP tools
+
+1. `projects.create`
+2. `method.analyze`
+3. `method.structure`
+4. `method.resolve_resources`
+5. `method.art_direct`
+6. `generation.render_preview`
+7. `generation.create_design`
+8. `verification.save`
+9. `approvals.approve_stage`
+10. `versions.mark_final`
+11. `identity.activate_version`
+
+## Security and workflow invariants
 
 - private owner/institution boundary;
-- `visual4d:write` permission required;
+- scoped permissions for read, render, write, approval, and identity operations;
 - MASTER ASSETS cannot be generatively edited;
 - generated imagery cannot be documentary evidence;
 - every gated stage uses an exact approved artifact version;
 - explicit approvals require a one-time user-action grant at the MCP boundary;
 - FINAL cannot auto-approve verification;
-- verification/final design FKs are scoped to the same project;
-- idempotency and optimistic project revisions are persisted.
+- verification and final-design foreign keys are scoped to the same project;
+- idempotency and optimistic project revisions are persisted;
+- production logs exclude Bearer tokens and full tool payloads;
+- multi-user isolation and negative workflow paths are certification gates.
 
-## Sprint 2.2 components
+## Important qualifications
 
-- `packages/postgres-repository`: node-postgres implementation of `ProjectRepository`;
-- `services/mcp-server/src/local-server.ts`: loopback Streamable HTTP MCP v2 server;
-- `local-auth.ts`: static Bearer auth for local development only;
-- `approval-grants.ts`: one-time explicit user approval grants;
-- migration `0004_sprint2_2_pg_mcp.sql`;
-- PostgreSQL and MCP integration tests.
+“Deployed,” “operational,” “certified,” and “publication-ready” are not synonyms:
 
-## Local development variables
+- **Deployed** means the recorded service or site is running at its production address.
+- **Operational** means the recorded health/readiness or integration checks succeeded.
+- **Certified** means an automated or real end-to-end gate exercised a defined contract.
+- **Publication-ready** requires separate branding and external registration/marketplace gates.
 
-See `.env.example`. Required for the local MCP server:
+The public manifest currently records the Clerk provider `environment` as `development` while also recording the OAuth/ChatGPT path as operational and `production_ready: true`. Until that field and the deployed provider configuration are reconciled, the documentation claims operational certification of the OAuth path, not independently verified promotion to a Clerk production tenant.
 
-- `DATABASE_URL`
-- `VISUAL4D_LOCAL_AUTH_TOKEN`
-- `VISUAL4D_LOCAL_USER_ID`
+## Still pending
 
-The server defaults to `127.0.0.1:8787` and must not be exposed publicly with this development authentication scheme.
+- approval of the final icon and wordmark;
+- completion of remaining external registration or marketplace requirements;
+- an explicit decision to set `publication_ready=true`;
+- reconciliation of the Clerk environment designation with the deployed authentication configuration;
+- provider-managed backup retention and disaster-recovery policy review.
 
-## Dependency installation gate
+## Development and certification
 
-This package intentionally does not include the stale Sprint 2.1 lockfile because dependencies changed to MCP v2, PostgreSQL and Zod 4. On a network-connected development environment run:
+Requires Node.js 22 and npm 10.9.2.
 
 ```bash
 npm install
-npm run build:integration
 npm test
+npm run test:certification
 ```
 
-Then commit the generated lockfile after the clean build passes.
+PostgreSQL-backed certification requires the database environment expected by the integration scripts. CI uses no-skip wrappers for mandatory PostgreSQL, migration, and all-tools gates.
 
-## Tests available without external services
+## Status rule
 
-The core and source-contract suite currently passes **40/40** in the build environment.
-
-PostgreSQL integration tests additionally require `VISUAL4D_TEST_DATABASE_URL`. MCP integration tests require installed MCP v2 dependencies.
-
-## Not production ready
-
-This is a local integration prototype. Production ChatGPT connectivity, HTTPS deployment, OAuth/production authentication, object storage, renderer and image-generation services are intentionally outside this sprint.
-
-## Sprint 2.3 — Core Certification
-
-Sprint 2.3 hardens transactional integrity, idempotency, approval grants, MCP contracts and HTTP boundaries before any Layout Solver/renderer work.
-
-Key additions:
-- PostgreSQL transaction context across workflow mutations
-- concurrency-safe idempotency reservation
-- persisted approval grants with `ISSUED / CLAIMED / CONSUMED`
-- pre-grant ownership/stage/version validation
-- development-only explicit approval bridge
-- HTTP body, timeout and rate limits
-- MCP tool annotations
-- real PostgreSQL + MCP end-to-end certification test
-
-Local non-database gate in the build environment: **49/49 PASS**.
-The real PostgreSQL/MCP certification gate remains mandatory before declaring the secure core closed; see `docs/architecture/PHASE5_SPRINT2_3_CORE_CERTIFICATION.md`.
-
-## Sprint 2.4 — External CI Certification package
-This package includes `.github/workflows/core-certification.yml`, a disposable PostgreSQL 16 CI service, no-skip wrappers for mandatory integration tests, and automatic generation of `certification/CORE_EXTERNAL_CERTIFICATION_REPORT.md`. A core certification is valid only after a green external CI run with zero skipped tests.
+Do not regress this README to a sprint-era or prototype-era statement. Update [Current Status](docs/release/CURRENT_STATUS.md), the public manifest, and this README together whenever a deployment, certification, or publication gate changes.
