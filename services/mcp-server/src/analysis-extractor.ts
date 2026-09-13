@@ -73,7 +73,8 @@ export function extractAnalysisFromSource(sourceContent: string): ExtractedAnaly
     validationFlags.push(flag);
   }
 
-  if (essential.length === 0 && lines.length > 0) essential.push(lines[0].replace(/^[-*•]\s*/, "").trim());
+  const firstLine = lines[0];
+  if (essential.length === 0 && firstLine) essential.push(firstLine.replace(/^[-*•]\s*/, "").trim());
 
   essential.push(...agreements.map(value => "Acuerdo: " + value));
   essential.push(...commitments.map(value => "Compromiso: " + value));
